@@ -1,7 +1,7 @@
 // Storage for the collection JSON and photos.
 // On Vercel this is a private Vercel Blob store; locally (no token) it falls
 // back to files under .data/ so the app can be run and tested offline.
-import { put, get, del, BlobPreconditionFailedError } from '@vercel/blob';
+import { put, get, head, del, BlobPreconditionFailedError, BlobNotFoundError } from '@vercel/blob';
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -32,10 +32,21 @@ export async function readJson(p) {
       throw e;
     }
   }
+  // The ETag header on a content read isn't in the same form put()'s ifMatch
+  // compares against, so take the version from head() (same API as put).
+  // head() runs first: if a write lands in between, we hold an older etag
+  // with newer content, and the next save fails safely as a conflict.
+  let meta;
+  try {
+    meta = await head(p);
+  } catch (e) {
+    if (e instanceof BlobNotFoundError) return null;
+    throw e;
+  }
   const r = await get(p, { access: 'private', useCache: false });
   if (!r || r.statusCode !== 200) return null;
   const text = await new Response(r.stream).text();
-  return { data: JSON.parse(text), etag: r.blob.etag };
+  return { data: JSON.parse(text), etag: meta.etag };
 }
 
 // ifMatch: etag the caller last read, or null when creating the document.

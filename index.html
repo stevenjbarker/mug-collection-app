@@ -475,7 +475,9 @@ async function loadCollection(){
 }
 
 // Apply a change and save it. Returns true if the server accepted it.
-async function commit(change, savingMsg = 'Saving...'){
+// If another device saved first, the change is re-applied to the latest
+// copy and saved once more before asking the user.
+async function commit(change, savingMsg = 'Saving...', retried = false){
   const next = JSON.parse(JSON.stringify(collection));
   change(next);
   toast(savingMsg, 60000);
@@ -493,6 +495,7 @@ async function commit(change, savingMsg = 'Saving...'){
   if(res.status === 409){
     const body = await res.json();
     if(body.data){ collection = body.data; etag = body.etag; }
+    if(!retried && body.data) return commit(change, savingMsg, true);
     renderAll();
     toast('', 1);
     alert('The collection was just changed on another device. It has been refreshed - please make your change again.');
