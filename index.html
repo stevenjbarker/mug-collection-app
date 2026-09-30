@@ -226,6 +226,45 @@
     font-size:13px;font-weight:600;color:var(--muted);background:#eee6d8cc;
   }
   .tab.active{background:var(--sb-green);color:white;}
+
+  /* Display photos (whole-shelf shots) */
+  .display-actions{padding:6px 16px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .display-actions .btn{flex:0 0 auto;padding:11px 18px;}
+  .display-actions .hint{font-size:12.5px;color:var(--muted);flex:1;min-width:180px;}
+  .display-grid{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:12px;
+    padding:0 16px 16px;
+  }
+  .display-card{
+    background:var(--card-bg);border-radius:14px;overflow:hidden;
+    box-shadow:0 1px 4px rgba(0,0,0,0.1);cursor:pointer;
+  }
+  .display-card img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:#eee6d8;}
+  .display-card .info{padding:8px 12px 10px;}
+  .display-card .cap{font-size:14px;font-weight:600;}
+  .display-card .date{font-size:11.5px;color:var(--muted);margin-top:2px;}
+  .display-full{border-radius:12px;overflow:hidden;background:#eee6d8;margin-bottom:14px;}
+  .display-full img{width:100%;height:auto;max-height:62vh;object-fit:contain;display:block;}
+
+  /* Laptop / tablet layout */
+  #browse-view, #stats-view, #display-view, .tabs{max-width:1200px;margin-left:auto;margin-right:auto;}
+  .card{cursor:pointer;}
+  @media (min-width:600px){
+    .grid{grid-template-columns:repeat(3,1fr);}
+    .display-grid{grid-template-columns:repeat(2,1fr);}
+  }
+  @media (min-width:900px){
+    .grid{grid-template-columns:repeat(4,1fr);}
+    .modal-overlay{align-items:center;}
+    .modal{border-radius:20px;}
+    .modal.modal-wide{max-width:900px;}
+  }
+  @media (min-width:1200px){
+    .grid{grid-template-columns:repeat(6,1fr);}
+    .display-grid{grid-template-columns:repeat(3,1fr);}
+  }
 </style>
 </head>
 <body>
@@ -239,6 +278,7 @@
 
 <div class="tabs">
   <div class="tab active" data-tab="browse">Browse</div>
+  <div class="tab" data-tab="display">Display</div>
   <div class="tab" data-tab="stats">Stats</div>
 </div>
 
@@ -257,6 +297,16 @@
   <div class="stats-row" id="statsTotals"></div>
   <div class="section-label">By series</div>
   <div class="stats-detail" id="seriesBreakdown"></div>
+</div>
+
+<div id="display-view" style="display:none;">
+  <div class="display-actions">
+    <button class="btn btn-primary" id="addDisplayBtn">+ Add display photos</button>
+    <div class="hint">Photos of the whole shelf or display. You can pick several at once.</div>
+    <input type="file" accept="image/*" id="displayPhotoInput" multiple style="display:none;">
+  </div>
+  <div id="displayGrid" class="display-grid"></div>
+  <div id="displayEmpty" class="empty-state" style="display:none;">No display photos yet. Tap "Add display photos" to add a shot of the whole collection.</div>
 </div>
 
 <button class="fab" id="addBtn" title="Add a mug">+</button>
@@ -286,6 +336,10 @@
       <button class="btn btn-primary" id="saveAdd">Save mug</button>
     </div>
   </div>
+</div>
+
+<div class="modal-overlay" id="displayModalOverlay">
+  <div class="modal modal-wide" id="displayModalBody"></div>
 </div>
 
 <div class="modal-overlay" id="detailModalOverlay">
@@ -441,7 +495,10 @@ document.querySelectorAll('.tab').forEach(tab => {
     const target = tab.dataset.tab;
     document.getElementById('browse-view').style.display = target === 'browse' ? '' : 'none';
     document.getElementById('stats-view').style.display = target === 'stats' ? '' : 'none';
+    document.getElementById('display-view').style.display = target === 'display' ? '' : 'none';
+    document.getElementById('addBtn').style.display = target === 'display' ? 'none' : '';
     if(target === 'stats') renderStatsView();
+    if(target === 'display') renderDisplayGrid();
   });
 });
 
@@ -571,7 +628,7 @@ function renderSyncBadge(){
     const last = getLastSync();
     badge.textContent = last ? `Synced to Google Sheets - last: ${last}` : 'Connected to Google Sheets';
   } else {
-    badge.textContent = 'Not connected - saved on this phone only';
+    badge.textContent = 'Not connected - saved on this device only';
   }
 }
 
@@ -646,8 +703,11 @@ document.getElementById('syncNowBtn').addEventListener('click', async () => {
   document.getElementById('syncStatus').textContent = `Synced! Last sync: ${getLastSync()}`;
 });
 
-document.getElementById('exportBtn').addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify(mugs, null, 2)], { type: 'application/json' });
+document.getElementById('exportBtn').addEventListener('click', async () => {
+  let displayPhotos = [];
+  try { displayPhotos = await getAllDisplayPhotos(); } catch(e){ console.warn('could not read display photos', e); }
+  const backup = { version: 2, mugs, displayPhotos };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -665,21 +725,208 @@ document.getElementById('importFileInput').addEventListener('change', e => {
   const file = e.target.files[0];
   if(!file) return;
   const reader = new FileReader();
-  reader.onload = evt => {
+  reader.onload = async evt => {
+    let imported, importedPhotos = null;
     try{
-      const imported = JSON.parse(evt.target.result);
-      if(!Array.isArray(imported)) throw new Error('bad format');
-      if(!confirm(`Import ${imported.length} mugs? This will replace your current collection on this phone.`)) return;
-      mugs = imported;
-      saveData(mugs);
-      renderAll();
-      alert('Import complete.');
+      const parsed = JSON.parse(evt.target.result);
+      // v1 backups are a bare array of mugs; v2 adds display photos
+      if(Array.isArray(parsed)) imported = parsed;
+      else if(parsed && Array.isArray(parsed.mugs)){
+        imported = parsed.mugs;
+        if(Array.isArray(parsed.displayPhotos)) importedPhotos = parsed.displayPhotos;
+      }
+      else throw new Error('bad format');
     }catch(err){
       alert('That file did not look like a valid backup.');
+      return;
     }
+    const photoNote = importedPhotos ? ` and ${importedPhotos.length} display photos` : '';
+    if(!confirm(`Import ${imported.length} mugs${photoNote}? This will replace your current collection on this device.`)) return;
+    mugs = imported;
+    saveData(mugs);
+    if(importedPhotos){
+      try { await replaceAllDisplayPhotos(importedPhotos); }
+      catch(e){ alert('Mugs imported, but the display photos could not be saved on this device.'); }
+    }
+    renderAll();
+    renderDisplayGrid();
+    alert('Import complete.');
   };
   reader.readAsText(file);
 });
+
+// ---------- Display photos (whole-shelf shots) ----------
+// Stored in IndexedDB rather than localStorage: full-display photos are
+// much larger than mug thumbnails and would blow the ~5MB localStorage cap.
+// They are device-local and travel between devices via Export/Import backup.
+const DISPLAY_DB = 'mugCollectionDB';
+const DISPLAY_STORE = 'displayPhotos';
+let displayDbPromise = null;
+
+function openDisplayDb(){
+  if(displayDbPromise) return displayDbPromise;
+  displayDbPromise = new Promise((resolve, reject) => {
+    if(!window.indexedDB){ reject(new Error('IndexedDB not available')); return; }
+    const req = indexedDB.open(DISPLAY_DB, 1);
+    req.onupgradeneeded = () => {
+      req.result.createObjectStore(DISPLAY_STORE, { keyPath: 'id' });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  displayDbPromise.catch(() => { displayDbPromise = null; });
+  return displayDbPromise;
+}
+
+async function displayTx(mode, fn){
+  const db = await openDisplayDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DISPLAY_STORE, mode);
+    const store = tx.objectStore(DISPLAY_STORE);
+    const result = fn(store);
+    tx.oncomplete = () => resolve(result && 'result' in result ? result.result : undefined);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+}
+
+function getAllDisplayPhotos(){
+  return displayTx('readonly', store => store.getAll())
+    .then(list => (list || []).sort((a,b) => (b.addedAt||0) - (a.addedAt||0)));
+}
+function putDisplayPhoto(photo){ return displayTx('readwrite', store => store.put(photo)); }
+function deleteDisplayPhoto(id){ return displayTx('readwrite', store => store.delete(id)); }
+function replaceAllDisplayPhotos(list){
+  return displayTx('readwrite', store => {
+    store.clear();
+    list.forEach(p => { if(p && p.id && p.photo) store.put(p); });
+  });
+}
+
+// Keep display shots sharp enough to read the mugs: 2000px long edge.
+function resizeImageFile(file, maxDim, quality){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = evt => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Could not read image'));
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        const scale = Math.min(1, maxDim / Math.max(w, h));
+        w = Math.round(w * scale); h = Math.round(h * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function formatDisplayDate(ts){
+  if(!ts) return '';
+  return new Date(ts).toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
+}
+
+async function renderDisplayGrid(){
+  const grid = document.getElementById('displayGrid');
+  const empty = document.getElementById('displayEmpty');
+  let list;
+  try { list = await getAllDisplayPhotos(); }
+  catch(e){
+    grid.innerHTML = '';
+    empty.textContent = 'This browser is blocking photo storage (private browsing?). Display photos cannot be saved here.';
+    empty.style.display = 'block';
+    return;
+  }
+  if(list.length === 0){
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = list.map(p => `
+    <div class="display-card" data-id="${escapeHtml(p.id)}">
+      <img src="${p.photo}" alt="${escapeHtml(p.caption || 'Display photo')}" loading="lazy">
+      <div class="info">
+        <div class="cap">${escapeHtml(p.caption || 'Full display')}</div>
+        <div class="date">${escapeHtml(formatDisplayDate(p.addedAt))}</div>
+      </div>
+    </div>
+  `).join('');
+  grid.querySelectorAll('.display-card').forEach(card => {
+    card.addEventListener('click', () => openDisplayDetail(card.dataset.id, list));
+  });
+}
+
+const displayOverlay = document.getElementById('displayModalOverlay');
+function openDisplayDetail(id, list){
+  const p = list.find(x => x.id === id);
+  if(!p) return;
+  document.getElementById('displayModalBody').innerHTML = `
+    <button class="close-x" id="closeDisplayModal">×</button>
+    <h2>${escapeHtml(p.caption || 'Full display')}</h2>
+    <div class="display-full"><img src="${p.photo}" alt=""></div>
+    <div class="field"><label>Caption</label><input type="text" id="editDisplayCaption" value="${escapeHtml(p.caption||'')}" placeholder="e.g. Kitchen shelf, left side"></div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="saveDisplayBtn">Save</button>
+      <button class="btn btn-danger" id="deleteDisplayBtn">Delete</button>
+    </div>
+  `;
+  displayOverlay.classList.add('open');
+  document.getElementById('closeDisplayModal').addEventListener('click', () => displayOverlay.classList.remove('open'));
+  document.getElementById('saveDisplayBtn').addEventListener('click', async () => {
+    p.caption = document.getElementById('editDisplayCaption').value.trim();
+    await putDisplayPhoto(p);
+    displayOverlay.classList.remove('open');
+    renderDisplayGrid();
+  });
+  document.getElementById('deleteDisplayBtn').addEventListener('click', async () => {
+    if(!confirm('Delete this display photo?')) return;
+    await deleteDisplayPhoto(p.id);
+    displayOverlay.classList.remove('open');
+    renderDisplayGrid();
+  });
+}
+displayOverlay.addEventListener('click', e => { if(e.target === displayOverlay) displayOverlay.classList.remove('open'); });
+
+document.getElementById('addDisplayBtn').addEventListener('click', () => {
+  document.getElementById('displayPhotoInput').click();
+});
+document.getElementById('displayPhotoInput').addEventListener('change', async e => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  if(!files.length) return;
+  const btn = document.getElementById('addDisplayBtn');
+  btn.disabled = true;
+  let saved = 0, failed = 0;
+  for(let i = 0; i < files.length; i++){
+    btn.textContent = `Saving ${i+1} of ${files.length}...`;
+    try{
+      const photo = await resizeImageFile(files[i], 2000, 0.82);
+      await putDisplayPhoto({
+        id: `d${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
+        photo,
+        caption: '',
+        addedAt: Date.now()
+      });
+      saved++;
+    }catch(err){
+      console.warn('display photo failed', err);
+      failed++;
+    }
+  }
+  btn.disabled = false;
+  btn.textContent = '+ Add display photos';
+  if(failed) alert(`${saved} photo(s) saved, ${failed} could not be saved.`);
+  renderDisplayGrid();
+});
+
+// Ask the browser not to evict our storage (helps on iPhone Safari).
+if(navigator.storage && navigator.storage.persist){ navigator.storage.persist().catch(() => {}); }
 
 renderAll();
 renderSyncBadge();
