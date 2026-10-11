@@ -107,6 +107,7 @@
   .bill .cbody{flex:1;min-width:0;}
   .bill .qa{margin-top:0;flex:none;width:70px;}
   .bill .down{color:#b3261e;}
+  .bill small{display:block;font-size:12px;line-height:1.3;margin-top:2px;opacity:.85;}
   .sheetmsg{min-height:0;font-size:14px;font-weight:600;border-radius:10px;}
   .sheetmsg:not(:empty){margin:10px 0 0;padding:8px 10px;background:var(--bg2);}
   .sheetmsg.good:not(:empty){background:#cdeec5;color:var(--ink);} .sheetmsg.bad:not(:empty){background:#f7c7bb;color:var(--ink);}
@@ -312,7 +313,7 @@
       <li>The game runs through 20 real years of market history. Which years? You'll find out at the end.</li>
       <li>Every 6 months you get a <b style="color:var(--cream);">$4,000 paycheck</b> to invest.</li>
       <li>New investments unlock as the years go by.</li>
-      <li>Life happens: surprise bills come out of your cash, then savings, then a 22% credit card.</li>
+      <li>Life happens: surprise bills must be paid within 3 months, and you can't buy anything until you do. If you don't pay, the game sells your stuff to cover it.</li>
     </ul>
   </div>
   <button class="linkbtn" id="leaveBtn" style="margin-top:12px;">Leave game</button>
@@ -459,7 +460,7 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 const BOND_LESSON = 'A government bond is a loan to the U.S. government. You lend money for a set time (1 month, 3 months, or 1 year) at the interest rate of the day you buy, and get it back with interest when it matures. Longer bonds usually pay a bit more, but your money is tied up longer. You can sell early here with no penalty.';
 const INV = {
   savings:   { name: 'Savings Account', icon: '🏦', risk: 'Very low risk', unlock: 0,
-    lesson: 'A savings account pays a small amount of interest, and you can deposit or withdraw any time. It is your emergency fund: surprise bills must be paid from pocket cash, so having savings to withdraw keeps you off the 22% credit card.' },
+    lesson: 'A savings account pays a small amount of interest, and you can deposit or withdraw any time. It is your emergency fund: surprise bills must be paid from pocket cash, so having savings to withdraw means you won’t have to sell investments at a bad time.' },
   cd:        { name: 'CDs', icon: '🔐', risk: 'Very low risk', unlock: 12, rate: true,
     lesson: 'A CD (certificate of deposit) is a deal with a bank: you lock your money up for one year and the bank pays a fixed interest rate, usually more than savings. When it matures, your money plus interest lands back in your pocket cash. Need it sooner? You can break it, but you pay a penalty of 3 months of interest.' },
   index:     { name: 'Index Fund', icon: '📈', risk: 'Medium risk', unlock: 24,
@@ -713,7 +714,7 @@ function announce(d){
     if (S.seenNews.has(k)) continue;
     S.seenNews.add(k);
     if (first || !d.me) continue;
-    if (n.kind === 'expense') toast(`😬 ${n.text} A ${money(-n.amount)} bill is due. Pay it from pocket cash within 3 months.`, 'bad', 8000);
+    if (n.kind === 'expense') toast(`😬 ${n.text} A ${money(-n.amount)} bill is due. Pay it within 3 months; no buying until it's paid.`, 'bad', 8000);
     else if (n.kind === 'windfall') toast(`🎉 ${n.text} +${money(n.amount)}`, 'good');
     else if (n.kind === 'listing') toast(`🔔 New stock: ${n.text.replace('New on the market: ', '').split('.')[0]}`, 'news');
     else toast('📰 ' + n.text, 'news', 7000);
@@ -774,12 +775,15 @@ function renderPlay(){
   // Bills waiting to be paid.
   patchList($('billsBar'), (me.bills || []).map((b) => ({
     key: 'bill' + b.id, cls: 'bill',
-    html: `<span>😬 <b>${esc(b.title)}</b> ${money(b.amount)} · ${b.dueIn <= 1 ? '<b class="down">due this month</b>' : `due in ${b.dueIn} months`}${me.cash < b.amount ? ' — withdraw savings or sell something first' : ''}</span>`,
+    html: `<span>😬 <b>${esc(b.title)}</b> ${money(b.amount)} · ${b.dueIn <= 1 ? '<b class="down">due this month</b>' : `due in ${b.dueIn} months`}<br><small>${me.cash < b.amount ? 'Not enough cash: withdraw savings or sell something, then pay.' : 'Pay it before you can buy anything.'} If it's still unpaid when it's due, your things get sold to cover it.</small></span>`,
     actions: `<button class="qbtn buy" data-paybill="${b.id}" ${running && me.cash >= b.amount ? '' : 'disabled'}>Pay</button>`,
   })));
 
   const assets = Object.fromEntries((d.market?.assets || []).map((a) => [a.id, a]));
-  const off = running ? '' : 'disabled';
+  // No buying while a bill is open — players must pay it (selling is fine).
+  const billOpen = (me.bills || []).length > 0;
+  const canBuy = running && !billOpen;
+  const off = canBuy ? '' : 'disabled';
   const cards = [];
   for (const id of ORDER) {
     const inv = INV[id];
@@ -804,7 +808,7 @@ function renderPlay(){
           <div class="spark">${spark(st.history)}</div>
           <div class="row"><span>${money(st.price, true)}<span class="muted">/share</span></span><span class="${ch >= 0 ? 'up' : 'down'}">${ch == null ? '—' : pct(ch)} 1y</span></div>
           <div class="row" style="margin-top:3px;"><span class="muted">You own</span><span class="mine">${shares ? `${fmtShares(shares)} sh · ${money(h.value)}` : '0 shares'}</span></div>`,
-          actions: `<div class="srow"><span class="slabel">Buy</span>${SHARE_STEPS.map((n) => `<button class="qbtn buy" data-shares="${n}" data-side="buy" data-asset="${st.id}" ${running && affordable >= n ? '' : 'disabled'}>${n}</button>`).join('')}<button class="qbtn buy" data-shares="max" data-side="buy" data-asset="${st.id}" ${running && affordable >= 1 ? '' : 'disabled'}>Max</button></div>
+          actions: `<div class="srow"><span class="slabel">Buy</span>${SHARE_STEPS.map((n) => `<button class="qbtn buy" data-shares="${n}" data-side="buy" data-asset="${st.id}" ${canBuy && affordable >= n ? '' : 'disabled'}>${n}</button>`).join('')}<button class="qbtn buy" data-shares="max" data-side="buy" data-asset="${st.id}" ${canBuy && affordable >= 1 ? '' : 'disabled'}>Max</button></div>
             <div class="srow"><span class="slabel">Sell</span>${SHARE_STEPS.map((n) => `<button class="qbtn sell" data-shares="${n}" data-side="sell" data-asset="${st.id}" ${running && shares >= n ? '' : 'disabled'}>${n}</button>`).join('')}<button class="qbtn sell" data-shares="all" data-side="sell" data-asset="${st.id}" ${running && shares > 0 ? '' : 'disabled'}>All</button></div>` });
       }
       continue;
@@ -907,10 +911,11 @@ function renderSheet(fresh = false){
   if (isStock) {
     const shares = h?.shares || 0;
     const affordable = Math.floor((d.me.cash + 0.005) / item.price);
-    setHtml($('tShares'), `<div class="srow big"><span class="slabel">Buy</span>${SHARE_STEPS.map((n) => `<button class="qbtn buy" data-shares="${n}" data-side="buy" data-asset="${item.id}" ${running && affordable >= n ? '' : 'disabled'}>${n}</button>`).join('')}<button class="qbtn buy" data-shares="max" data-side="buy" data-asset="${item.id}" ${running && affordable >= 1 ? '' : 'disabled'}>Max (${affordable})</button></div>
+    const canBuy = running && !(d.me.bills || []).length;
+    setHtml($('tShares'), `<div class="srow big"><span class="slabel">Buy</span>${SHARE_STEPS.map((n) => `<button class="qbtn buy" data-shares="${n}" data-side="buy" data-asset="${item.id}" ${canBuy && affordable >= n ? '' : 'disabled'}>${n}</button>`).join('')}<button class="qbtn buy" data-shares="max" data-side="buy" data-asset="${item.id}" ${canBuy && affordable >= 1 ? '' : 'disabled'}>Max (${affordable})</button></div>
       <div class="srow big"><span class="slabel">Sell</span>${SHARE_STEPS.map((n) => `<button class="qbtn sell" data-shares="${n}" data-side="sell" data-asset="${item.id}" ${running && shares >= n ? '' : 'disabled'}>${n}</button>`).join('')}<button class="qbtn sell" data-shares="all" data-side="sell" data-asset="${item.id}" ${running && shares > 0 ? '' : 'disabled'}>All</button></div>`);
   } else if (!S.busy) {
-    el.querySelector('[data-trade="buy"]').disabled = !running;
+    el.querySelector('[data-trade="buy"]').disabled = !running || !!(d.me.bills || []).length;
     el.querySelector('[data-trade="sell"]').disabled = !h || !running;
     el.querySelector('[data-trade="sellall"]').disabled = !h || !running;
   }
@@ -952,7 +957,7 @@ function renderLotSheet(id, fresh){
   $('tPrice').textContent = a.rate.toFixed(2) + '%';
   $('tOwn').textContent = h ? money(h.value) : '$0';
   $('tCash').textContent = money(d.me.cash);
-  if (!S.busy) el.querySelector('[data-trade="buy"]').disabled = !running;
+  if (!S.busy) el.querySelector('[data-trade="buy"]').disabled = !running || !!(d.me.bills || []).length;
   setHtml($('lotList'), h ? `<div class="muted" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">${isCd ? 'Your CDs' : 'Your bonds'}</div>` +
     h.lots.map((l) => `<div class="stock" style="cursor:default;">
       <div class="info"><div class="sname">${money(l.amount)} at ${(l.rate * 100).toFixed(2)}%</div>
