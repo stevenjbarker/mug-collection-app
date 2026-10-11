@@ -100,7 +100,7 @@ export const GET = handle(async (request) => {
   const body = { now, room: pub, leaderboard: board, news: game.news(room, month) };
   if (pub.status !== 'lobby') body.market = game.market(room, month);
   if (me) body.me = { id: me.id, name: me.name, v: me.v, ...game.summarize(room, me, month) };
-  if (pub.status === 'done') body.reveal = game.reveal(room);
+  if (pub.status === 'done') body.reveal = game.reveal(room, month);
   return json(body);
 });
 

@@ -77,6 +77,10 @@
   .stat .of{font-size:13px;font-weight:600;color:var(--muted);}
   .stat .gap{font-size:12px;color:var(--muted);max-width:190px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .stat .gap b{color:var(--gold);}
+  .hostbar{max-width:1100px;margin:8px auto 0;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;
+    background:var(--bg2);border:1px dashed var(--gold-dark);border-radius:10px;padding:6px 10px;font-size:14px;}
+  .hostbar b{color:var(--gold);letter-spacing:2px;font-size:17px;}
+  .hostbar .hb-actions{display:flex;gap:8px;}
   .paused-banner{max-width:1100px;margin:8px auto 0;background:var(--gold);color:var(--ink);border-radius:10px;padding:6px 12px;font-weight:700;text-align:center;}
 
   /* ---------- play ---------- */
@@ -280,6 +284,10 @@
       </div>
     </div>
     <div class="paused-banner hidden" id="pPaused">Paused by the host</div>
+    <div class="hostbar hidden" id="hostBar">
+      <span>Hosting · code <b class="display" id="hbCode"></b> · <span id="hbCount"></span></span>
+      <span class="hb-actions"><button class="btn small" id="hbPause">Pause</button><button class="btn small ghost" id="hbEnd">End game</button></span>
+    </div>
   </div>
   <div class="play">
     <div>
@@ -318,6 +326,13 @@
       <button class="btn" id="startBtn">Start game</button>
     </div>
     <div class="error" id="hostError" style="text-align:center;"></div>
+    <form class="card stack" id="playToo" style="max-width:420px;margin:18px auto 0;" autocomplete="off">
+      <h2 style="margin-bottom:4px;">Play too?</h2>
+      <p class="muted" style="margin:0;font-size:14px;">Join your own game from this tab. You'll get the player screen with host controls on top.</p>
+      <input class="field" id="playTooName" maxlength="20" placeholder="Your name">
+      <button class="btn" type="submit" style="width:100%;">Join as a player</button>
+    </form>
+    <div class="card" id="playingAs" style="max-width:420px;margin:18px auto 0;text-align:center;display:none;"></div>
   </div>
   <div id="hostRun" class="hidden">
     <div class="card" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
@@ -351,9 +366,13 @@
     <div id="rBench"></div>
     <p class="muted" id="rInflation" style="margin:12px 0 0;font-size:14px;"></p>
   </div>
-  <div class="card" style="text-align:left;">
+  <div class="card" style="text-align:left;" id="rStocksCard">
     <h2>Who were those companies?</h2>
     <table class="reveal" id="rStocks"></table>
+  </div>
+  <div class="card" style="text-align:left;" id="rTimelineCard">
+    <h2>What actually happened</h2>
+    <ul class="news" id="rTimeline"></ul>
   </div>
   <button class="btn" id="againBtn" style="margin-top:22px;">Back to start</button>
   <p class="muted" style="font-size:12px;margin-top:22px;line-height:1.5;">Real history: yearly returns for savings (3-month T-bills), government bonds (10-year Treasuries), the S&amp;P 500, U.S. home prices and gold from Aswath Damodaran, NYU Stern. CD rates from the Federal Reserve (6-month CD rate through mid-2013, then the 1-year Treasury yield). Monthly stock prices from Yahoo Finance, adjusted for dividends and splits.</p>
@@ -493,13 +512,13 @@ function startPolling(){
   stopPolling();
   poll();
   pollTimer = setInterval(poll, 2000);
-  tickTimer = setInterval(() => { if (S.role === 'player') renderClock('p'); else renderClock('h'); }, 250);
+  tickTimer = setInterval(() => { if (S.player) renderClock('p'); else renderClock('h'); }, 250);
 }
 function stopPolling(){ clearInterval(pollTimer); clearInterval(tickTimer); pollTimer = tickTimer = null; }
 
 async function poll(){
   const params = { code: S.code };
-  if (S.role === 'player') Object.assign(params, { player: S.player, token: S.token });
+  if (S.player) Object.assign(params, { player: S.player, token: S.token });
   else params.host = S.hostKey;
   const t0 = Date.now();
   let r;
@@ -533,7 +552,8 @@ function render(){
   if (!d) return;
   const status = d.room.status;
   if (status === 'done') { stopPolling(); closeSheet(); renderResults(); show('results'); return; }
-  if (S.role === 'host') { renderHost(); return; }
+  // A host who also plays sees the host lobby before the start, then the player screen.
+  if (S.role === 'host' && (!S.player || status === 'lobby')) { renderHost(); return; }
   if (status === 'lobby') { renderLobby(); if ($('lobby').classList.contains('hidden')) show('lobby'); return; }
   if ($('play').classList.contains('hidden')) show('play');
   renderPlay();
@@ -631,6 +651,12 @@ function renderPlay(){
   $('pDebtWrap').classList.toggle('hidden', !(me.debt > 0));
   $('pDebt').textContent = money(me.debt);
   $('pPaused').classList.toggle('hidden', d.room.status !== 'paused');
+  $('hostBar').classList.toggle('hidden', !S.hostKey);
+  if (S.hostKey) {
+    $('hbCode').textContent = S.code;
+    $('hbCount').textContent = `${d.leaderboard.length} player${d.leaderboard.length === 1 ? '' : 's'}`;
+    $('hbPause').textContent = d.room.status === 'paused' ? 'Resume' : 'Pause';
+  }
 
   const assets = Object.fromEntries((d.market?.assets || []).map((a) => [a.id, a]));
   patchList($('invGrid'), ORDER.map((id) => {
@@ -832,6 +858,9 @@ function renderHost(){
   if (status === 'lobby') {
     $('hostUrl').textContent = location.host + '/stax';
     $('hostCode').textContent = S.code;
+    $('playToo').style.display = S.player ? 'none' : '';
+    $('playingAs').style.display = S.player ? '' : 'none';
+    if (S.player && d.me) $('playingAs').innerHTML = `You're playing too, as <b style="color:var(--gold);">${esc(d.me.name)}</b>. When you start, this tab switches to your player screen with host controls on top.`;
     $('hostCount').textContent = d.leaderboard.length ? `${d.leaderboard.length} player${d.leaderboard.length === 1 ? '' : 's'} joined` : 'No players yet';
     setHtml($('hostPlayers'), d.leaderboard.map((p) => `<span class="pchip">${esc(p.name)} <button class="kick" data-kick="${esc(p.id)}" title="Remove">×</button></span>`).join(''));
   } else {
@@ -854,14 +883,16 @@ async function hostOp(op, extra = {}){
 function renderResults(){
   const d = S.data, rv = d.reveal;
   if (!rv) return;
-  $('rYears').innerHTML = `You just invested through <b style="color:var(--gold);">${rv.startYear}–${rv.endYear}</b>`;
+  $('rYears').innerHTML = `You just invested through <b style="color:var(--gold);">${rv.startYear}–${rv.endYear}</b>` +
+    (rv.endedEarly ? `<div class="muted" style="font-size:14px;margin-top:4px;">The host ended the game early.</div>` : '');
   const board = d.leaderboard;
   if (d.me) {
     const rank = board.findIndex((p) => p.id === d.me.id) + 1;
     const medal = ['🥇','🥈','🥉'][rank - 1] || '';
     $('rMine').innerHTML = `<div style="font-size:15px;" class="muted">Your final stack</div>
       <div class="display" style="font-size:48px;color:var(--gold);">${money(d.me.netWorth)}</div>
-      <div>${medal} You finished <b>#${rank}</b> of ${board.length}. You were paid ${money(d.me.contributed)} in total${d.me.debt > 0 ? `, and still owe ${money(d.me.debt)} on your credit card` : ''}.</div>`;
+      <div>${medal} You finished <b>#${rank}</b> of ${board.length}. You were paid ${money(d.me.contributed)} in total${d.me.debt > 0 ? `, and still owe ${money(d.me.debt)} on your credit card` : ''}.</div>
+      ${holdingsHtml(d.me, rv)}`;
     $('rMine').classList.remove('hidden');
   } else {
     $('rMine').classList.add('hidden');
@@ -873,9 +904,28 @@ function renderResults(){
   $('rBench').innerHTML = `<p class="muted" style="margin:0 0 8px;font-size:14px;">All ${money(rv.contributed)} of paychecks, invested the day they arrived (no surprise bills):</p>` +
     rows.map(([label, v]) => `<div class="bench"><div class="bl">${label}</div><div class="bt"><div style="width:${(v / max * 100).toFixed(1)}%"></div></div><div class="bv">${money(v)}</div></div>`).join('') +
     (d.me ? `<div class="bench"><div class="bl"><b>You</b></div><div class="bt"><div style="width:${Math.max(0, d.me.netWorth / max * 100).toFixed(1)}%;background:var(--up);"></div></div><div class="bv">${money(d.me.netWorth)}</div></div>` : '');
-  $('rInflation').textContent = `Prices also rose over those 20 years: something that cost $100 in ${rv.startYear} cost about ${money(100 * rv.inflation)} by ${rv.endYear}. That's why money sitting in your pocket slowly loses value.`;
+  $('rTimeline').innerHTML = (rv.timeline || []).map((t) => `<li><div class="when">${esc(t.date)}</div><div>${esc(t.text)}</div></li>`).join('');
+  $('rTimelineCard').classList.toggle('hidden', !(rv.timeline || []).length);
+  $('rInflation').textContent = `Prices also rose over those ${rv.endYear - rv.startYear + 1} years: something that cost $100 in ${rv.startYear} cost about ${money(100 * rv.inflation)} by ${rv.endYear}. That's why money sitting in your pocket slowly loses value.`;
   const stocks = [...rv.stocks].sort((a, b) => b.change - a.change);
+  $('rStocksCard').classList.toggle('hidden', !stocks.length);
   $('rStocks').innerHTML = stocks.map((s) => `<tr><td>${esc(s.name)}</td><td>was <b>${esc(s.real)}</b></td><td class="${s.change >= 0 ? 'up' : 'down'}">${pct(s.change)}</td></tr>`).join('');
+}
+
+// What a player ended up holding, with real company names revealed.
+function holdingsHtml(me, rv){
+  const rows = [];
+  if (me.cash >= 1) rows.push(['💵 Pocket cash', me.cash, null]);
+  for (const [id, h] of Object.entries(me.holdings)) {
+    const stock = rv.stocks.find((s) => s.id === id);
+    const label = INV[id] ? `${INV[id].icon} ${INV[id].name}` : stock ? `🏷️ ${esc(stock.name)} <span class="muted">(${esc(stock.real)})</span>` : esc(id);
+    rows.push([label, h.value, h.cost]);
+  }
+  if (me.debt > 0) rows.push(['💳 Credit card debt', -me.debt, null]);
+  if (!rows.length) return '';
+  rows.sort((a, b) => b[1] - a[1]);
+  return `<table class="reveal" style="margin-top:14px;text-align:left;">${rows.map(([label, v, cost]) =>
+    `<tr><td>${label}</td><td class="${v < 0 ? 'down' : ''}">${money(v)}${cost ? ` <span class="${v >= cost ? 'up' : 'down'}" style="font-weight:600;">(${pct(v / cost - 1)})</span>` : ''}</td></tr>`).join('')}</table>`;
 }
 
 // ---------- flows ----------
@@ -886,6 +936,8 @@ async function enterAsPlayer(code, player, token){
 }
 async function enterAsHost(code, hostKey){
   S.role = 'host'; S.code = code; S.hostKey = hostKey;
+  const saved = store.get('stax:p:' + code);
+  if (saved) { S.player = saved.player; S.token = saved.token; }
   store.set('stax:last', { role: 'host', code });
   show('host');
   startPolling();
@@ -933,6 +985,20 @@ $('hostAuthForm').addEventListener('submit', async (e) => {
 });
 $('leaveBtn').addEventListener('click', () => { forget(); stopPolling(); show('home'); });
 $('againBtn').addEventListener('click', () => { forget(); stopPolling(); show('home'); });
+$('playToo').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = $('playTooName').value.trim();
+  if (!name) { $('hostError').textContent = 'Enter your name to play.'; return; }
+  const r = await api('POST', { action: 'join', code: S.code, name });
+  if (!r.ok) { $('hostError').textContent = r.data.error || 'Could not join.'; return; }
+  $('hostError').textContent = '';
+  store.set('stax:p:' + S.code, { player: r.data.player, token: r.data.token });
+  store.set('stax:name', name);
+  S.player = r.data.player; S.token = r.data.token;
+  await poll();
+});
+$('hbPause').addEventListener('click', () => hostOp(S.data?.room.status === 'paused' ? 'resume' : 'pause'));
+$('hbEnd').addEventListener('click', () => { if (confirm('End the game now for everyone?')) hostOp('end'); });
 $('startBtn').addEventListener('click', () => hostOp('start', { yearSeconds: Number($('speed').value) }));
 $('pauseBtn').addEventListener('click', () => hostOp(S.data?.room.status === 'paused' ? 'resume' : 'pause'));
 $('endBtn').addEventListener('click', () => { if (confirm('End the game now for everyone?')) hostOp('end'); });
@@ -993,6 +1059,7 @@ document.addEventListener('keydown', (e) => {
   const q = new URLSearchParams(location.search);
   const last = store.get('stax:last');
   $('joinName').value = store.get('stax:name') || '';
+  $('playTooName').value = store.get('stax:name') || '';
   if (q.get('code')) $('joinCode').value = q.get('code').toUpperCase().slice(0, 4);
   if (last?.role === 'host' && store.get('stax:h:' + last.code)) return enterAsHost(last.code, store.get('stax:h:' + last.code));
   if (last?.role === 'player') {

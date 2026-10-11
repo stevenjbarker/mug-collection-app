@@ -430,26 +430,36 @@ export function news(room, month) {
   return out.sort((a, b) => b.month - a.month).slice(0, 12).map(({ at, ...n }) => ({ ...n, label: monthLabel(at ?? n.month) }));
 }
 
-// Revealed only once the game is over.
-export function reveal(room) {
+// Revealed only once the game is over. `month` is where the game stopped
+// (240 unless the host ended it early).
+export function reveal(room, month = GAME_MONTHS) {
   const k0 = startIndex(room);
-  const months = GAME_MONTHS;
-  const lastPay = (GAME_MONTHS / PAY_EVERY - 1) * PAY_EVERY;
+  const end = Math.max(1, Math.min(GAME_MONTHS, Math.floor(month)));
+  const years = Math.ceil(end / 12);
   const strategy = (asset) => {
     let units = 0;
-    for (let m = 0; m <= lastPay; m += PAY_EVERY) units += PAYCHECK / price(room, asset, m);
-    return round2(units * price(room, asset, months));
+    for (let m = 0; m < end; m += PAY_EVERY) units += PAYCHECK / price(room, asset, m);
+    return round2(units * price(room, asset, end));
   };
   let inflation = 1;
-  for (let y = room.startYear; y < room.startYear + 20; y++) inflation *= 1 + CPI[y - FIRST_YEAR];
-  const stocks = STOCKS.filter((s) => s.listed - k0 <= months).map((s) => {
+  for (let y = room.startYear; y < room.startYear + years; y++) inflation *= 1 + CPI[y - FIRST_YEAR];
+  const stocks = STOCKS.filter((s) => stockListedMonth(room, s) < end && s.listed - k0 <= end).map((s) => {
     const lm = stockListedMonth(room, s);
-    return { id: s.id, name: s.name, real: REAL_NAMES[s.ticker] || s.ticker, ticker: s.ticker, change: round2(price(room, s.id, months) / price(room, s.id, lm) - 1) };
+    return { id: s.id, name: s.name, real: REAL_NAMES[s.ticker] || s.ticker, ticker: s.ticker, change: round2(price(room, s.id, end) / price(room, s.id, lm) - 1) };
   });
+  // What really happened, with the real dates.
+  const MONTH_NAMES_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const timeline = [];
+  for (let c = 0; c < end; c++) {
+    const y = room.startYear + Math.floor(c / 12);
+    const key = `${y}-${String((c % 12) + 1).padStart(2, '0')}`;
+    if (HEADLINES[key]) timeline.push({ date: `${MONTH_NAMES_LONG[c % 12]} ${y}`, text: HEADLINES[key] });
+  }
   return {
     startYear: room.startYear,
-    endYear: room.startYear + 19,
-    contributed: (GAME_MONTHS / PAY_EVERY) * PAYCHECK,
+    endYear: room.startYear + years - 1,
+    endedEarly: end < GAME_MONTHS,
+    contributed: Math.min(GAME_MONTHS / PAY_EVERY, Math.floor((end - 1) / PAY_EVERY) + 1) * PAYCHECK,
     benchmarks: {
       savings: strategy('savings'),
       treasury: strategy('treasury'),
@@ -458,6 +468,7 @@ export function reveal(room) {
     },
     inflation: round2(inflation),
     stocks,
+    timeline,
   };
 }
 
