@@ -81,17 +81,55 @@
     background:var(--bg2);border:1px dashed var(--gold-dark);border-radius:10px;padding:6px 10px;font-size:14px;}
   .hostbar b{color:var(--gold);letter-spacing:2px;font-size:17px;}
   .hostbar .hb-actions{display:flex;gap:8px;}
+  .qtybar{max-width:1100px;margin:8px auto 0;display:flex;gap:6px;align-items:center;}
+  .qtybar .qlabel{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-right:2px;}
+  .qty{flex:1;max-width:90px;background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:6px 0;font-size:14px;font-weight:700;cursor:pointer;}
+  .qty.on{background:var(--gold);color:var(--ink);border-color:var(--ink);}
+  .ticker{max-width:1100px;margin:8px auto 0;display:flex;align-items:center;gap:8px;min-height:34px;padding:6px 10px;border-radius:10px;
+    background:var(--bg2);border:1px solid var(--line);font-size:14px;line-height:1.3;}
+  .ticker span{flex:1;min-width:0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+  .ticker.good{background:#cdeec5;color:var(--ink);border-color:var(--ink);}
+  .ticker.bad{background:#f7c7bb;color:var(--ink);border-color:var(--ink);}
+  .ticker.news{background:var(--gold);color:var(--ink);border-color:var(--ink);}
+  .ticker.good span,.ticker.bad span,.ticker.news span{color:var(--ink);font-weight:600;}
+  .ticker button{background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:inherit;padding:0 2px;}
+  .qa{display:flex;gap:6px;margin-top:10px;}
+  .stockcard .qa{flex-direction:column;gap:5px;}
+  .srow{display:flex;gap:4px;align-items:center;}
+  .srow .slabel{width:30px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+  .srow .qbtn{padding:5px 0;font-size:13px;}
+  .srow.big{margin-top:8px;}
+  .srow.big .qbtn{padding:9px 0;font-size:15px;}
+  .srow.big .slabel{width:40px;}
+  .blurb2{font-size:12.5px;color:var(--muted);line-height:1.35;margin-top:6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+  .billsbar{max-width:1100px;margin:0 auto;}
+  .bill{margin-top:8px;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:#f7c7bb;color:var(--ink);border:2px solid var(--ink);font-size:14px;}
+  .bill .cbody{flex:1;min-width:0;}
+  .bill .qa{margin-top:0;flex:none;width:70px;}
+  .bill .down{color:#b3261e;}
+  .sheetmsg{min-height:0;font-size:14px;font-weight:600;border-radius:10px;}
+  .sheetmsg:not(:empty){margin:10px 0 0;padding:8px 10px;background:var(--bg2);}
+  .sheetmsg.good:not(:empty){background:#cdeec5;color:var(--ink);} .sheetmsg.bad:not(:empty){background:#f7c7bb;color:var(--ink);}
+  .qbtn{flex:1;border:2px solid var(--ink);border-radius:9px;padding:7px 0;font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 2px 0 var(--ink);}
+  .qbtn.buy{background:var(--gold);color:var(--ink);}
+  .qbtn.sell{background:var(--cream);color:var(--ink);}
+  .qbtn:disabled{opacity:.35;cursor:default;box-shadow:none;}
+  .qbtn:active:not(:disabled){transform:translateY(1px);box-shadow:none;}
+  .stock .cbody{flex:1;min-width:0;display:flex;gap:12px;align-items:center;}
+  .stock .qa{margin-top:0;flex-direction:column;gap:5px;flex:none;width:62px;}
+  .stock .qbtn{padding:5px 0;font-size:13px;}
   .paused-banner{max-width:1100px;margin:8px auto 0;background:var(--gold);color:var(--ink);border-radius:10px;padding:6px 12px;font-weight:700;text-align:center;}
 
   /* ---------- play ---------- */
   .play{max-width:1100px;margin:0 auto;padding:16px 16px 80px;display:grid;grid-template-columns:1fr 320px;gap:18px;align-items:start;}
   @media (max-width:820px){ .play{grid-template-columns:1fr;} }
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;}
+  div.inv[data-open]{cursor:pointer;}
   .inv{
     position:relative;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;cursor:pointer;text-align:left;
     transition:transform .12s ease,border-color .12s ease;display:block;width:100%;
   }
-  .inv:hover{border-color:var(--gold);transform:translateY(-2px);}
+  .inv:hover{border-color:var(--gold);}
   .inv.locked{cursor:default;opacity:.55;}
   button.inv{font:inherit;color:inherit;}
   .inv.locked:hover{transform:none;border-color:var(--line);}
@@ -151,7 +189,9 @@
 
   /* ---------- toasts ---------- */
   .toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:60;display:flex;flex-direction:column;gap:8px;width:min(520px,calc(100% - 32px));pointer-events:none;}
-  .toast{background:var(--cream);color:var(--ink);border:2px solid var(--ink);box-shadow:0 4px 0 var(--ink);border-radius:14px;padding:11px 14px;font-weight:600;animation:pop .25s ease;}
+  .toast{background:var(--cream);color:var(--ink);border:2px solid var(--ink);box-shadow:0 4px 0 var(--ink);border-radius:14px;padding:11px 14px;font-weight:600;animation:pop .25s ease;pointer-events:auto;display:flex;gap:10px;align-items:flex-start;}
+  .toast span{flex:1;}
+  .toast button{background:none;border:none;font-size:20px;line-height:1;cursor:pointer;color:var(--ink);padding:0;}
   .toast.bad{background:#f7c7bb;} .toast.good{background:#cdeec5;} .toast.news{background:var(--gold);}
   @keyframes pop{from{transform:translateY(10px);opacity:0;}to{transform:none;opacity:1;}}
 
@@ -206,8 +246,21 @@
     .inv .spark{height:36px;margin:8px 0 4px;}
     .inv .new{top:6px;right:6px;font-size:10px;padding:1px 5px;}
     .chips .chip{flex:1 1 auto;text-align:center;}
-    .toasts{bottom:auto;top:calc(8px + env(safe-area-inset-top));flex-direction:column-reverse;}
     .toast{padding:9px 12px;font-size:14px;}
+    .inv .risk{display:none;}
+    .inv .spark{height:26px;margin:6px 0 4px;}
+    .inv .row{font-size:12px;}
+    .inv .name{font-size:13.5px;}
+    .qbtn{font-size:13px;padding:6px 0;}
+    .blurb2{font-size:11.5px;-webkit-line-clamp:3;}
+    .srow .slabel{width:26px;font-size:10px;}
+    .srow .qbtn{font-size:12px;padding:5px 0;}
+    .bill{font-size:13px;}
+    .stock{gap:8px;}
+    .stock .cbody{gap:8px;}
+    .stock svg{width:48px;}
+    .stock .blurb{font-size:12px;}
+    .qty{font-size:13px;}
   }
 </style>
 </head>
@@ -284,6 +337,16 @@
       </div>
     </div>
     <div class="paused-banner hidden" id="pPaused">Paused by the host</div>
+    <div class="qtybar" id="qtyBar">
+      <span class="qlabel">Trade</span>
+      <button class="qty" data-qty="100">$100</button>
+      <button class="qty" data-qty="500">$500</button>
+      <button class="qty" data-qty="1000">$1K</button>
+      <button class="qty" data-qty="5000">$5K</button>
+      <button class="qty" data-qty="all">All</button>
+    </div>
+    <div id="billsBar" class="billsbar"></div>
+    <div class="ticker" id="ticker"><span id="tickerText" class="muted">Good luck!</span><button id="tickerClose" aria-label="Dismiss" class="hidden">×</button></div>
     <div class="hostbar hidden" id="hostBar">
       <span>Hosting · code <b class="display" id="hbCode"></b> · <span id="hbCount"></span></span>
       <span class="hb-actions"><button class="btn small" id="hbPause">Pause</button><button class="btn small ghost" id="hbEnd">End game</button></span>
@@ -375,7 +438,7 @@
     <ul class="news" id="rTimeline"></ul>
   </div>
   <button class="btn" id="againBtn" style="margin-top:22px;">Back to start</button>
-  <p class="muted" style="font-size:12px;margin-top:22px;line-height:1.5;">Real history: yearly returns for savings (3-month T-bills), government bonds (10-year Treasuries), the S&amp;P 500, U.S. home prices and gold from Aswath Damodaran, NYU Stern. CD rates from the Federal Reserve (6-month CD rate through mid-2013, then the 1-year Treasury yield). Monthly stock prices from Yahoo Finance, adjusted for dividends and splits.</p>
+  <p class="muted" style="font-size:12px;margin-top:22px;line-height:1.5;">Real history: yearly returns for savings (3-month T-bills), the S&amp;P 500, U.S. home prices and gold from Aswath Damodaran, NYU Stern. CD and government bond rates from the Federal Reserve (H.15): the 6-month CD rate through mid-2013, then the 1-year Treasury yield; 1-month, 3-month and 1-year Treasury yields (the 1-month uses the 3-month before 2001). Monthly stock prices from Yahoo Finance, adjusted for dividends and splits.</p>
 </section>
 
 <!-- ============ SHEET + TOASTS ============ -->
@@ -393,23 +456,30 @@ const money = (n, cents = false) => {
 const pct = (x) => (x >= 0 ? '+' : '−') + Math.abs(x * 100).toFixed(x !== 0 && Math.abs(x) < 0.1 ? 1 : 0) + '%';
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
+const BOND_LESSON = 'A government bond is a loan to the U.S. government. You lend money for a set time (1 month, 3 months, or 1 year) at the interest rate of the day you buy, and get it back with interest when it matures. Longer bonds usually pay a bit more, but your money is tied up longer. You can sell early here with no penalty.';
 const INV = {
   savings:   { name: 'Savings Account', icon: '🏦', risk: 'Very low risk', unlock: 0,
-    lesson: 'A savings account pays a small amount of interest to hold your money. It almost never loses value, so it is the home for your emergency fund. Surprise bills come out of pocket cash first, then savings, then by breaking your CDs. Still short? It goes on a credit card at 22% interest.' },
-  cd:        { name: 'CDs', icon: '🔐', risk: 'Very low risk', unlock: 12,
+    lesson: 'A savings account pays a small amount of interest, and you can deposit or withdraw any time. It is your emergency fund: surprise bills must be paid from pocket cash, so having savings to withdraw keeps you off the 22% credit card.' },
+  cd:        { name: 'CDs', icon: '🔐', risk: 'Very low risk', unlock: 12, rate: true,
     lesson: 'A CD (certificate of deposit) is a deal with a bank: you lock your money up for one year and the bank pays a fixed interest rate, usually more than savings. When it matures, your money plus interest lands back in your pocket cash. Need it sooner? You can break it, but you pay a penalty of 3 months of interest.' },
   index:     { name: 'Index Fund', icon: '📈', risk: 'Medium risk', unlock: 24,
     lesson: 'An index fund buys a tiny slice of the 500 biggest U.S. companies all at once. When one company stumbles, the others carry it. Some years it drops hard, but over long stretches it has grown more than almost anything else.' },
   stocks:    { name: 'Individual Stocks', icon: '🏷️', risk: 'High risk', unlock: 36,
-    lesson: 'A share of stock is a piece of ownership in one company. If the company grows, so does your share. If it struggles, you can lose a lot. These are REAL companies with their names changed. Read the descriptions and decide who you believe in.' },
-  treasury:  { name: 'Government Bonds', icon: '🏛️', risk: 'Low risk', unlock: 60,
-    lesson: 'A bond is a loan. When you buy a government bond you lend money to the U.S. government and it pays you interest. Bond prices move opposite to interest rates: when rates jump, existing bonds lose value for a while.' },
+    lesson: 'A share of stock is a piece of ownership in one company. If the company grows, so does your share. If it struggles, you can lose a lot. These are REAL companies with their names changed, and each game deals a different handful. Read the descriptions and decide who you believe in.' },
+  b1:        { name: 'Gov. Bond · 1 mo', icon: '🏛️', risk: 'Very low risk', unlock: 60, rate: true, lessonKey: 'bonds', lesson: BOND_LESSON, term: 1 },
+  b3:        { name: 'Gov. Bond · 3 mo', icon: '🏛️', risk: 'Very low risk', unlock: 60, rate: true, lessonKey: 'bonds', lesson: BOND_LESSON, term: 3 },
+  b12:       { name: 'Gov. Bond · 1 yr', icon: '🏛️', risk: 'Low risk', unlock: 60, rate: true, lessonKey: 'bonds', lesson: BOND_LESSON, term: 12 },
   realestate:{ name: 'Real Estate', icon: '🏠', risk: 'Medium risk', unlock: 84,
     lesson: 'This tracks the price of U.S. homes. Real estate usually rises slowly with the economy, but when a housing bubble pops, prices can fall for years.' },
   gold:      { name: 'Gold', icon: '🪙', risk: 'High risk', unlock: 108,
     lesson: 'Gold pays no interest and no dividends. Its price moves on fear and inflation: people rush to it when they are scared. It can sit still for a decade, then shoot up.' },
 };
-const ORDER = ['savings','cd','index','stocks','treasury','realestate','gold'];
+// Dashboard order; 'stocks' expands into one card per company once unlocked.
+const ORDER = ['savings','cd','index','stocks','b1','b3','b12','realestate','gold'];
+// Savings isn't bought and sold — it's deposited and withdrawn.
+const verbs = (id) => (id === 'savings' ? ['Deposit', 'Withdraw', 'Deposited', 'Withdrew'] : ['Buy', 'Sell', 'Bought', 'Sold']);
+const nameOf = (id) => INV[id]?.name || S.data?.market?.stocks.find((s) => s.id === id)?.name || 'that';
+const SHARE_STEPS = [1, 25, 50];
 
 // ---------- storage (per-device, best effort) ----------
 const store = {
@@ -431,6 +501,7 @@ let S = {
   seenUnlock: null,
   sheet: null,      // { type, id }
   busy: false,
+  qty: (() => { try { return localStorage.getItem('stax:qty') || '1000'; } catch { return '1000'; } })(),
 };
 let pollTimer = null, tickTimer = null;
 
@@ -451,13 +522,38 @@ async function api(method, body, params){
   return { ok: res.ok, status: res.status, data };
 }
 
+// During play, messages go in the one-line strip in the top bar (never over
+// buttons). Elsewhere they show as a small closable note at the bottom.
+let tickerTimer = null;
 function toast(text, kind = '', ms = 4200){
+  if (S.sheet && $('sheetMsg')) {
+    $('sheetMsg').className = 'sheetmsg ' + kind;
+    $('sheetMsg').textContent = text;
+  }
+  if (!$('play').classList.contains('hidden')) {
+    $('ticker').className = 'ticker ' + kind;
+    $('tickerText').textContent = text;
+    $('tickerClose').classList.remove('hidden');
+    clearTimeout(tickerTimer);
+    tickerTimer = setTimeout(resetTicker, Math.max(ms, 5000));
+    return;
+  }
   const el = document.createElement('div');
   el.className = 'toast ' + kind;
-  el.textContent = text;
+  el.innerHTML = `<span></span><button aria-label="Dismiss">×</button>`;
+  el.firstChild.textContent = text;
+  el.lastChild.onclick = () => el.remove();
   $('toasts').appendChild(el);
   while ($('toasts').children.length > 2) $('toasts').firstChild.remove();
   setTimeout(() => el.remove(), ms);
+}
+// Back to the latest headline once a message has had its moment.
+function resetTicker(){
+  clearTimeout(tickerTimer);
+  const latest = S.data?.news?.find((n) => n.kind === 'news');
+  $('ticker').className = 'ticker';
+  $('tickerText').textContent = latest ? `📰 ${latest.text}` : 'Good luck!';
+  $('tickerClose').classList.add('hidden');
 }
 
 // Updates a list in place, keeping each element (keyed) so taps and focus
@@ -470,7 +566,20 @@ function patchList(container, items, tag = 'div'){
     existing.delete(it.key);
     if (el.className !== it.cls) el.className = it.cls;
     if (it.open) el.dataset.open = it.open; else delete el.dataset.open;
-    if (el._html !== it.html) { el.innerHTML = it.html; el._html = it.html; }
+    if (it.actions == null) {
+      if (el._html !== it.html) { el.innerHTML = it.html; el._html = it.html; }
+    } else {
+      // Buttons live in their own box that's only rebuilt when they change,
+      // so a tap never lands on a button that was just replaced.
+      if (!el._body) {
+        el.innerHTML = '';
+        el._body = document.createElement('div'); el._body.className = 'cbody';
+        el._acts = document.createElement('div'); el._acts.className = 'qa';
+        el.append(el._body, el._acts);
+      }
+      if (el._html !== it.html) { el._body.innerHTML = it.html; el._html = it.html; }
+      if (el._actHtml !== it.actions) { el._acts.innerHTML = it.actions; el._actHtml = it.actions; }
+    }
     if (container.children[i] !== el) container.insertBefore(el, container.children[i] || null);
   });
   for (const el of existing.values()) el.remove();
@@ -487,6 +596,7 @@ function spark(values, w = 200, h = 46, fill = true, trend = yearChange(values))
   const area = fill ? `<path d="${d} L${w} ${h} L0 ${h} Z" fill="${color}" opacity=".12"/>` : '';
   return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${area}<path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`;
 }
+const fmtShares = (n) => (Number.isInteger(n) ? n.toLocaleString('en-US') : n.toFixed(2));
 const yearChange = (h) => (h && h.length > 1 ? h[h.length - 1] / h[Math.max(0, h.length - 13)] - 1 : null);
 
 // ---------- clock ----------
@@ -543,7 +653,7 @@ async function poll(){
 function forget(){
   if (S.code) { store.del('stax:p:' + S.code); store.del('stax:h:' + S.code); }
   store.del('stax:last');
-  S = { ...S, role: null, code: null, player: null, token: null, hostKey: null, data: null, meV: -1, seenNews: null, lastPayIdx: null, seenUnlock: null, seenMatured: null };
+  S = { ...S, role: null, code: null, player: null, token: null, hostKey: null, data: null, meV: -1, seenNews: null, lastPayIdx: null, seenUnlock: null, seenLog: null };
 }
 
 // ---------- render ----------
@@ -594,7 +704,7 @@ function newsHtml(items){
 }
 
 function announce(d){
-  // Toasts for things that just happened: news, bills, paydays, unlocks.
+  // Messages for things that just happened: news, bills, paydays, unlocks.
   const keyOf = (n) => n.month + ':' + n.kind + ':' + n.text;
   const first = S.seenNews === null;
   if (first) S.seenNews = new Set();
@@ -602,30 +712,29 @@ function announce(d){
     const k = keyOf(n);
     if (S.seenNews.has(k)) continue;
     S.seenNews.add(k);
-    if (first || S.role !== 'player') continue;
-    if (n.kind === 'expense') toast(`😬 ${n.text} −${money(-n.amount)}${d.me.debt > 0 ? ' — some went on your credit card!' : ''}`, 'bad', 6500);
+    if (first || !d.me) continue;
+    if (n.kind === 'expense') toast(`😬 ${n.text} A ${money(-n.amount)} bill is due. Pay it from pocket cash within 3 months.`, 'bad', 8000);
     else if (n.kind === 'windfall') toast(`🎉 ${n.text} +${money(n.amount)}`, 'good');
     else if (n.kind === 'listing') toast(`🔔 New stock: ${n.text.replace('New on the market: ', '').split('.')[0]}`, 'news');
     else toast('📰 ' + n.text, 'news', 7000);
   }
-  for (const mt of d.me.matured || []) {
-    S.seenMatured ||= new Set(first ? (d.me.matured || []).map((x) => x.id) : []);
-    if (S.seenMatured.has(mt.id)) continue;
-    S.seenMatured.add(mt.id);
-    toast(`🔓 A CD matured: +${money(mt.value)} back in your pocket cash`, 'good', 4000);
+  // Matured CDs/bonds and bills that went on the card.
+  if (S.seenLog === null || S.seenLog === undefined) S.seenLog = new Set(first ? (d.me.log || []).map((x) => x.id) : []);
+  for (const l of d.me.log || []) {
+    if (S.seenLog.has(l.id)) continue;
+    S.seenLog.add(l.id);
+    toast((l.kind === 'bad' ? '💳 ' : '🔓 ') + l.text, l.kind, 6000);
   }
   const m = Math.floor(d.room.month);
   const payIdx = Math.min(39, Math.floor(m / 6));
   if (S.lastPayIdx !== null && payIdx > S.lastPayIdx && d.room.status === 'running') toast(`💵 Payday! +${money(d.room.paycheck)}`, 'good', 2500);
   S.lastPayIdx = payIdx;
 
-  const unlocked = ORDER.filter((id) => m >= INV[id].unlock);
-  if (S.seenUnlock === null) {
-    S.seenUnlock = new Set(store.get('stax:u:' + S.code) || []);
-  }
-  for (const id of unlocked) {
-    if (S.seenUnlock.has(id)) continue;
-    S.seenUnlock.add(id);
+  if (S.seenUnlock === null) S.seenUnlock = new Set(store.get('stax:u:' + S.code) || []);
+  for (const id of ORDER.filter((x) => m >= INV[x].unlock)) {
+    const key = INV[id].lessonKey || id;
+    if (S.seenUnlock.has(key)) continue;
+    S.seenUnlock.add(key);
     store.set('stax:u:' + S.code, [...S.seenUnlock]);
     if (!S.sheet) openLesson(id);
   }
@@ -643,7 +752,8 @@ function renderPlay(){
     const diff = ahead.netWorth - me.netWorth;
     gap = diff < 1 ? `Tied with ${esc(ahead.name)}` : `<b>${money(diff)}</b> behind ${esc(ahead.name)}`;
   } else if (rank === 1 && behind) {
-    gap = `Leading by <b>${money(me.netWorth - behind.netWorth)}</b>`;
+    const lead = me.netWorth - behind.netWorth;
+    gap = lead < 1 ? `Tied with ${esc(behind.name)}` : `Leading by <b>${money(lead)}</b>`;
   }
   setHtml($('pGap'), gap);
   $('pCash').textContent = money(me.cash);
@@ -658,43 +768,72 @@ function renderPlay(){
     $('hbPause').textContent = d.room.status === 'paused' ? 'Resume' : 'Pause';
   }
 
+  const running = d.room.status === 'running';
+  document.querySelectorAll('.qty').forEach((b) => b.classList.toggle('on', b.dataset.qty === String(S.qty)));
+  if ($('tickerClose').classList.contains('hidden')) resetTicker();
+  // Bills waiting to be paid.
+  patchList($('billsBar'), (me.bills || []).map((b) => ({
+    key: 'bill' + b.id, cls: 'bill',
+    html: `<span>😬 <b>${esc(b.title)}</b> ${money(b.amount)} · ${b.dueIn <= 1 ? '<b class="down">due this month</b>' : `due in ${b.dueIn} months`}${me.cash < b.amount ? ' — withdraw savings or sell something first' : ''}</span>`,
+    actions: `<button class="qbtn buy" data-paybill="${b.id}" ${running && me.cash >= b.amount ? '' : 'disabled'}>Pay</button>`,
+  })));
+
   const assets = Object.fromEntries((d.market?.assets || []).map((a) => [a.id, a]));
-  patchList($('invGrid'), ORDER.map((id) => {
+  const off = running ? '' : 'disabled';
+  const cards = [];
+  for (const id of ORDER) {
     const inv = INV[id];
-    const head = (icon) => `<div class="head"><span class="icon">${icon}</span><div><div class="name">${inv.name}</div><div class="risk">${inv.risk}</div></div></div>`;
+    const head = (icon, name = inv.name, sub = inv.risk) => `<div class="head"><span class="icon">${icon}</span><div><div class="name">${name}</div><div class="risk">${sub}</div></div></div>`;
     if (m < inv.unlock) {
-      return { key: id, cls: 'inv locked', open: null,
-        html: head('🔒') + `<div class="lockmsg">Unlocks in Year ${inv.unlock / 12 + 1}</div>` };
+      cards.push({ key: id, cls: 'inv locked', open: null, html: head('🔒') + `<div class="lockmsg">Unlocks in Year ${inv.unlock / 12 + 1}</div>` });
+      continue;
     }
     const fresh = m - inv.unlock < 12 && inv.unlock > 0;
+    const badge = fresh ? '<span class="new">NEW</span>' : '';
     if (id === 'stocks') {
-      const stocks = d.market?.stocks || [];
-      let mine = 0, cost = 0;
-      for (const s of stocks) { const h = me.holdings[s.id]; if (h) { mine += h.value; cost += h.cost; } }
-      const newest = stocks.filter((s) => m - s.listedMonth < 12 && s.listedMonth > inv.unlock).length;
-      return { key: id, cls: 'inv', open: 'stocks',
-        html: `${fresh || newest ? `<span class="new">${newest && !fresh ? newest + ' NEW' : 'NEW'}</span>` : ''}${head(inv.icon)}
-        <div class="row" style="margin-top:14px;"><span class="muted">${stocks.length} companies to choose from</span></div>
-        <div class="row" style="margin-top:12px;"><span class="muted">You own</span><span class="mine">${money(mine)}${cost ? ` <span class="${mine >= cost ? 'up' : 'down'}">(${pct(mine / cost - 1)})</span>` : ''}</span></div>` };
+      // One card per company dealt for this game.
+      for (const st of d.market?.stocks || []) {
+        const h = me.holdings[st.id];
+        const ch = yearChange(st.history);
+        const isNew = m - st.listedMonth < 12;
+        const shares = h?.shares || 0;
+        const affordable = Math.floor((me.cash + 0.005) / st.price);
+        cards.push({ key: st.id, cls: 'inv stockcard', open: st.id,
+          html: `${isNew ? '<span class="new">NEW</span>' : ''}${head('🏷️', esc(st.name), 'Stock')}
+          <div class="blurb2">${esc(st.blurb)}</div>
+          <div class="spark">${spark(st.history)}</div>
+          <div class="row"><span>${money(st.price, true)}<span class="muted">/share</span></span><span class="${ch >= 0 ? 'up' : 'down'}">${ch == null ? '—' : pct(ch)} 1y</span></div>
+          <div class="row" style="margin-top:3px;"><span class="muted">You own</span><span class="mine">${shares ? `${fmtShares(shares)} sh · ${money(h.value)}` : '0 shares'}</span></div>`,
+          actions: `<div class="srow"><span class="slabel">Buy</span>${SHARE_STEPS.map((n) => `<button class="qbtn buy" data-shares="${n}" data-side="buy" data-asset="${st.id}" ${running && affordable >= n ? '' : 'disabled'}>${n}</button>`).join('')}<button class="qbtn buy" data-shares="max" data-side="buy" data-asset="${st.id}" ${running && affordable >= 1 ? '' : 'disabled'}>Max</button></div>
+            <div class="srow"><span class="slabel">Sell</span>${SHARE_STEPS.map((n) => `<button class="qbtn sell" data-shares="${n}" data-side="sell" data-asset="${st.id}" ${running && shares >= n ? '' : 'disabled'}>${n}</button>`).join('')}<button class="qbtn sell" data-shares="all" data-side="sell" data-asset="${st.id}" ${running && shares > 0 ? '' : 'disabled'}>All</button></div>` });
+      }
+      continue;
     }
     const a = assets[id];
     const h = me.holdings[id];
-    if (id === 'cd') {
+    const [buyV, sellV] = verbs(id);
+    if (inv.rate) {
       const next = h ? Math.min(...h.lots.map((l) => l.maturesIn)) : null;
-      return { key: id, cls: 'inv', open: id,
-        html: `${fresh ? '<span class="new">NEW</span>' : ''}${head(inv.icon)}
+      cards.push({ key: id, cls: 'inv', open: id,
+        html: `${badge}${head(inv.icon)}
         <div class="spark">${spark(a?.history, 200, 46, true, 0)}</div>
-        <div class="row"><span class="muted">1-year rate now</span><span class="mine">${a?.rate != null ? a.rate.toFixed(2) + '%' : '—'}</span></div>
-        <div class="row" style="margin-top:4px;"><span class="muted">You own</span><span class="mine">${h ? money(h.value) : '$0'}</span></div>
-        ${next != null ? `<div class="row" style="margin-top:4px;"><span class="muted">Next payout in</span><span>${next} mo</span></div>` : ''}` };
+        <div class="row"><span class="muted">Rate now</span><span class="mine">${a?.rate != null ? a.rate.toFixed(2) + '%' : '—'}</span></div>
+        <div class="row" style="margin-top:3px;"><span class="muted">You own</span><span class="mine">${h ? money(h.value) : '$0'}</span></div>
+        <div class="row" style="margin-top:3px;"><span class="muted">${next != null ? 'Next payout' : 'Locked for'}</span><span>${next != null ? next : inv.term || 12} mo</span></div>`,
+        actions: id === 'cd'
+          ? `<button class="qbtn buy" data-quick="buy" data-asset="cd" ${off}>Buy</button><button class="qbtn sell" data-open="cd" ${h ? '' : 'disabled'}>Break…</button>`
+          : `<button class="qbtn buy" data-quick="buy" data-asset="${id}" ${off}>Buy</button><button class="qbtn sell" data-quick="sell" data-asset="${id}" ${h && running ? '' : 'disabled'}>Sell</button>` });
+      continue;
     }
     const ch = yearChange(a?.history);
-    return { key: id, cls: 'inv', open: id,
-      html: `${fresh ? '<span class="new">NEW</span>' : ''}${head(inv.icon)}
+    cards.push({ key: id, cls: 'inv', open: id,
+      html: `${badge}${head(inv.icon)}
       <div class="spark">${spark(a?.history)}</div>
       <div class="row"><span class="muted">Past year</span><span class="${ch >= 0 ? 'up' : 'down'}">${ch == null ? '—' : pct(ch)}</span></div>
-      <div class="row" style="margin-top:4px;"><span class="muted">You own</span><span class="mine">${h ? money(h.value) + (h.cost ? ` <span class="${h.value >= h.cost ? 'up' : 'down'}">(${pct(h.value / h.cost - 1)})</span>` : '') : '$0'}</span></div>` };
-  }), 'button');
+      <div class="row" style="margin-top:3px;"><span class="muted">${id === 'savings' ? 'Balance' : 'You own'}</span><span class="mine">${h ? money(h.value) + (h.cost && id !== 'savings' ? ` <span class="${h.value >= h.cost ? 'up' : 'down'}">(${pct(h.value / h.cost - 1)})</span>` : '') : '$0'}</span></div>`,
+      actions: `<button class="qbtn buy" data-quick="buy" data-asset="${id}" ${off}>${buyV}</button><button class="qbtn sell" data-quick="sell" data-asset="${id}" ${h && running ? '' : 'disabled'}>${sellV}</button>` });
+  }
+  patchList($('invGrid'), cards);
 
   setHtml($('pBoard'), boardHtml(d.leaderboard, { limit: 10 }));
   setHtml($('pNews'), newsHtml(d.news));
@@ -714,52 +853,37 @@ function renderSheet(fresh = false){
   if (sh.type === 'lesson') {
     if (!fresh) return;
     const inv = INV[sh.id];
+    const bonds = inv.lessonKey === 'bonds';
     el.innerHTML = `<button class="close" data-close>×</button>
       <div class="big-emoji">${inv.icon}</div>
-      <p class="muted" style="margin:10px 0 2px;text-transform:uppercase;letter-spacing:1px;font-size:12px;">${sh.id === 'savings' ? 'Your first investment' : 'New investment unlocked'}</p>
-      <h3 class="display">${inv.name}</h3>
+      <p class="muted" style="margin:10px 0 2px;text-transform:uppercase;letter-spacing:1px;font-size:12px;">${sh.id === 'savings' ? 'Your first investment' : bonds ? 'New investments unlocked' : 'New investment unlocked'}</p>
+      <h3 class="display">${bonds ? 'Government Bonds' : inv.name}</h3>
       <p class="lesson">${inv.lesson}</p>
-      <div class="actions"><button class="btn" data-open="${sh.id}">Got it</button></div>`;
+      <div class="actions"><button class="btn" data-close>Got it</button></div>`;
     return;
   }
-  if (sh.type === 'stocks') {
-    if (fresh) {
-      el.innerHTML = `<button class="close" data-close>×</button>
-        <h3 class="display">Individual Stocks</h3>
-        <p class="lesson">Real companies, names changed. Tap one to buy or sell. <button class="linkbtn" style="padding:0;" data-lesson="stocks">What's a stock?</button></p>
-        <div id="stockList"></div>`;
-    }
-    const m = Math.floor(d.room.month);
-    patchList($('stockList'), (d.market?.stocks || []).map((s) => {
-      const h = d.me.holdings[s.id];
-      const ch = yearChange(s.history);
-      return { key: s.id, cls: 'stock', open: s.id, html: `
-        <div class="info"><div class="sname">${esc(s.name)}${m - s.listedMonth < 12 && s.listedMonth > 36 ? ' <span style="background:var(--gold);color:var(--ink);font-size:10px;font-weight:800;padding:1px 6px;border-radius:6px;">NEW</span>' : ''}</div>
-          <div class="blurb">${esc(s.blurb)}</div>
-          ${h ? `<div style="font-size:13px;margin-top:3px;">You own <b>${money(h.value)}</b> <span class="${h.value >= h.cost ? 'up' : 'down'}">(${pct(h.value / h.cost - 1)})</span></div>` : ''}</div>
-        ${spark(s.history, 70, 30, false)}
-        <div class="nums"><div>${money(s.price, true)}</div><div class="${ch >= 0 ? 'up' : 'down'}">${ch == null ? '' : pct(ch)}</div></div>` };
-    }));
-    return;
-  }
-  if (sh.id === 'cd') { renderCdSheet(fresh); return; }
-  // trade sheet for an asset or a single stock
+  const running = d.room.status === 'running';
+  if (INV[sh.id]?.rate) { renderLotSheet(sh.id, fresh); return; }
   const isStock = !INV[sh.id];
   const item = isStock ? (d.market?.stocks || []).find((s) => s.id === sh.id) : (d.market?.assets || []).find((a) => a.id === sh.id);
   if (!item) { closeSheet(); return; }
+  const h = d.me.holdings[sh.id];
+  const [buyV, sellV] = verbs(sh.id);
   if (fresh) {
     el.innerHTML = `<button class="close" data-close>×</button>
-      ${isStock ? '<button class="linkbtn" style="padding:0 0 6px;" data-open="stocks">← All stocks</button>' : `<div class="big-emoji">${INV[sh.id].icon}</div>`}
+      <div class="big-emoji">${isStock ? '🏷️' : INV[sh.id].icon}</div>
       <h3 class="display">${isStock ? esc(item.name) : INV[sh.id].name}</h3>
-      <p class="lesson">${isStock ? esc(item.blurb) : INV[sh.id].lesson}</p>
+      <div class="sheetmsg" id="sheetMsg"></div>
+      <p class="lesson">${isStock ? esc(item.blurb) + ' <button class="linkbtn" style="padding:0;" data-lesson="stocks">What\'s a stock?</button>' : INV[sh.id].lesson}</p>
       <div class="chart" id="tChart"></div>
       <div class="muted" style="font-size:12px;" id="tMonths"></div>
       <div class="facts">
         <div><div class="label">${isStock ? 'Share price' : 'Value of $100'}</div><div class="value" id="tPrice"></div></div>
         <div><div class="label">Past year</div><div class="value" id="tChange"></div></div>
-        <div><div class="label">You own</div><div class="value" id="tOwn"></div></div>
+        <div><div class="label">${sh.id === 'savings' ? 'Balance' : 'You own'}</div><div class="value" id="tOwn"></div></div>
       </div>
       <div class="muted" style="font-size:14px;">Pocket cash: <b style="color:var(--cream);" id="tCash"></b></div>
+      ${isStock ? `<div id="tShares"></div>` : `
       <input class="field" id="amt" inputmode="decimal" enterkeyhint="done" placeholder="Amount in dollars" style="margin-top:8px;">
       <div class="chips">
         ${[100, 500, 1000, 5000].map((v) => `<button class="chip" data-amt="${v}">${money(v)}</button>`).join('')}
@@ -767,43 +891,48 @@ function renderSheet(fresh = false){
       </div>
       <div class="error" id="tradeError"></div>
       <div class="actions">
-        <button class="btn" data-trade="buy">Buy</button>
-        <button class="btn sell" data-trade="sell">Sell</button>
-        <button class="btn ghost" data-trade="sellall">Sell all</button>
-      </div>`;
-    if (window.matchMedia('(min-width:700px)').matches) setTimeout(() => $('amt')?.focus(), 50);
+        <button class="btn" data-trade="buy">${buyV}</button>
+        <button class="btn sell" data-trade="sell">${sellV}</button>
+        <button class="btn ghost" data-trade="sellall">${sellV} all</button>
+      </div>`}`;
   }
-  const h = d.me.holdings[sh.id];
   const ch = yearChange(item.history);
   setHtml($('tChart'), spark(item.history, 400, 120));
   $('tMonths').textContent = `Last ${item.history.length - 1} months`;
   $('tPrice').textContent = money(item.price, true);
   $('tChange').textContent = ch == null ? '—' : pct(ch);
   $('tChange').className = 'value ' + (ch >= 0 ? 'up' : 'down');
-  $('tOwn').textContent = h ? money(h.value) : '$0';
+  $('tOwn').textContent = h ? (isStock ? `${fmtShares(h.shares)} sh` : money(h.value)) : isStock ? '0 sh' : '$0';
   $('tCash').textContent = money(d.me.cash);
-  const running = d.room.status === 'running';
-  if (!S.busy) {
+  if (isStock) {
+    const shares = h?.shares || 0;
+    const affordable = Math.floor((d.me.cash + 0.005) / item.price);
+    setHtml($('tShares'), `<div class="srow big"><span class="slabel">Buy</span>${SHARE_STEPS.map((n) => `<button class="qbtn buy" data-shares="${n}" data-side="buy" data-asset="${item.id}" ${running && affordable >= n ? '' : 'disabled'}>${n}</button>`).join('')}<button class="qbtn buy" data-shares="max" data-side="buy" data-asset="${item.id}" ${running && affordable >= 1 ? '' : 'disabled'}>Max (${affordable})</button></div>
+      <div class="srow big"><span class="slabel">Sell</span>${SHARE_STEPS.map((n) => `<button class="qbtn sell" data-shares="${n}" data-side="sell" data-asset="${item.id}" ${running && shares >= n ? '' : 'disabled'}>${n}</button>`).join('')}<button class="qbtn sell" data-shares="all" data-side="sell" data-asset="${item.id}" ${running && shares > 0 ? '' : 'disabled'}>All</button></div>`);
+  } else if (!S.busy) {
     el.querySelector('[data-trade="buy"]').disabled = !running;
     el.querySelector('[data-trade="sell"]').disabled = !h || !running;
     el.querySelector('[data-trade="sellall"]').disabled = !h || !running;
   }
 }
 
-function renderCdSheet(fresh){
-  const d = S.data, el = $('sheet');
-  const a = (d.market?.assets || []).find((x) => x.id === 'cd');
+// CDs and government bonds: money locked in at a rate, paid out at maturity.
+function renderLotSheet(id, fresh){
+  const d = S.data, el = $('sheet'), inv = INV[id];
+  const a = (d.market?.assets || []).find((x) => x.id === id);
   if (!a?.unlocked) { closeSheet(); return; }
+  const isCd = id === 'cd';
   if (fresh) {
     el.innerHTML = `<button class="close" data-close>×</button>
-      <div class="big-emoji">${INV.cd.icon}</div>
-      <h3 class="display">CDs</h3>
-      <p class="lesson">${INV.cd.lesson}</p>
+      <div class="big-emoji">${inv.icon}</div>
+      <h3 class="display">${isCd ? 'CDs' : inv.name.replace('Gov.', 'Government')}</h3>
+      <div class="sheetmsg" id="sheetMsg"></div>
+      <p class="lesson">${inv.lesson}</p>
       <div class="chart" id="tChart"></div>
       <div class="muted" style="font-size:12px;" id="tMonths"></div>
       <div class="facts">
-        <div><div class="label">1-year rate now</div><div class="value" id="tPrice"></div></div>
-        <div><div class="label">Locked for</div><div class="value">12 months</div></div>
+        <div><div class="label">Rate now</div><div class="value" id="tPrice"></div></div>
+        <div><div class="label">Locked for</div><div class="value">${a.term === 12 ? '1 year' : a.term + ' mo'}</div></div>
         <div><div class="label">You own</div><div class="value" id="tOwn"></div></div>
       </div>
       <div class="muted" style="font-size:14px;">Pocket cash: <b style="color:var(--cream);" id="tCash"></b></div>
@@ -813,41 +942,65 @@ function renderCdSheet(fresh){
         <button class="chip" data-amt="all">All my cash</button>
       </div>
       <div class="error" id="tradeError"></div>
-      <div class="actions"><button class="btn" data-trade="buy">Open a CD</button></div>
-      <div id="cdLots" style="margin-top:16px;"></div>`;
-    if (window.matchMedia('(min-width:700px)').matches) setTimeout(() => $('amt')?.focus(), 50);
+      <div class="actions"><button class="btn" data-trade="buy">${isCd ? 'Open a CD' : 'Buy bond'}</button></div>
+      <div id="lotList" style="margin-top:16px;"></div>`;
   }
-  const h = d.me.holdings.cd;
+  const h = d.me.holdings[id];
+  const running = d.room.status === 'running';
   setHtml($('tChart'), spark(a.history, 400, 120, true, 0));
-  $('tMonths').textContent = `CD rates, last ${a.history.length - 1} months`;
+  $('tMonths').textContent = `Rates, last ${a.history.length - 1} months`;
   $('tPrice').textContent = a.rate.toFixed(2) + '%';
   $('tOwn').textContent = h ? money(h.value) : '$0';
   $('tCash').textContent = money(d.me.cash);
-  const running = d.room.status === 'running';
   if (!S.busy) el.querySelector('[data-trade="buy"]').disabled = !running;
-  setHtml($('cdLots'), h ? `<div class="label muted" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Your CDs</div>` +
+  setHtml($('lotList'), h ? `<div class="muted" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">${isCd ? 'Your CDs' : 'Your bonds'}</div>` +
     h.lots.map((l) => `<div class="stock" style="cursor:default;">
       <div class="info"><div class="sname">${money(l.amount)} at ${(l.rate * 100).toFixed(2)}%</div>
         <div class="blurb">Worth ${money(l.value)} now · pays out in ${l.maturesIn} month${l.maturesIn === 1 ? '' : 's'}</div></div>
-      <button class="btn small sell" data-breakcd="${esc(l.id)}" ${running ? '' : 'disabled'}>Break for ${money(l.breakValue)}</button>
+      <button class="btn small sell" data-cashout="${esc(l.id)}" data-kind="${id}" ${running ? '' : 'disabled'}>${isCd ? 'Break' : 'Sell'} for ${money(l.breakValue)}</button>
     </div>`).join('') : '');
 }
 
-async function doTrade(asset, side, amount, lot){
+async function doTrade(asset, side, amount, lot, shares){
   if (S.busy) return;
   S.busy = true;
   document.querySelectorAll('[data-trade]').forEach((b) => (b.disabled = true));
-  const r = await api('POST', { action: 'trade', code: S.code, player: S.player, token: S.token, asset, side, amount, lot }).catch(() => ({ ok: false, data: { error: 'No connection.' } }));
+  const r = await api('POST', { action: 'trade', code: S.code, player: S.player, token: S.token, asset, side, amount, lot, shares }).catch(() => ({ ok: false, data: { error: 'No connection.' } }));
   S.busy = false;
   if (!r.ok) {
+    S.lastError = r.data.error || 'Could not trade.';
     renderSheet();
-    if ($('tradeError')) $('tradeError').textContent = r.data.error || 'Could not trade.';
+    if ($('tradeError')) $('tradeError').textContent = S.lastError;
     return false;
   }
   S.data.me = r.data.me;
   S.meV = r.data.me.v;
   if ($('tradeError')) $('tradeError').textContent = '';
   return true;
+}
+
+// One-tap Buy/Sell from the dashboard, using the trade amount picked in the top bar.
+async function quickTrade(asset, side){
+  const me = S.data?.me;
+  if (!me || S.busy) return;
+  const label = nameOf(asset);
+  const [, , boughtV, soldV] = verbs(asset);
+  const want = S.qty === 'all' ? Infinity : Number(S.qty);
+  let amount;
+  if (side === 'buy') {
+    if (me.cash < 1) { toast('No pocket cash left. Payday is every 6 months.', 'bad'); return; }
+    amount = want >= me.cash - 0.005 ? 'all' : want;
+  } else {
+    const own = me.holdings[asset]?.value || 0;
+    if (!own) { toast(asset === 'savings' ? 'Your savings balance is $0.' : `You don't own any ${label}.`, 'bad'); return; }
+    amount = want >= own - 0.005 ? 'all' : want;
+  }
+  const before = side === 'buy' ? me.cash : me.holdings[asset]?.value || 0;
+  const ok = await doTrade(asset, side, amount);
+  if (!ok) { toast(S.lastError || 'Could not trade.', 'bad'); return; }
+  const moved = amount === 'all' ? before : amount;
+  toast(side === 'buy' ? `✅ ${boughtV} ${money(moved)}${asset === 'savings' ? '' : ` of ${label}`}` : `✅ ${soldV} ${money(moved)}${asset === 'savings' ? '' : ` of ${label}`}`, 'good', 3000);
+  renderPlay();
 }
 
 // ---------- host ----------
@@ -899,7 +1052,7 @@ function renderResults(){
   }
   $('rBoard').innerHTML = boardHtml(board);
   const b = rv.benchmarks;
-  const rows = [['Savings account', b.savings], ['Government bonds', b.treasury], ['Gold', b.gold], ['Index fund', b.index]];
+  const rows = [['Savings account', b.savings], ['Real estate', b.realestate], ['Gold', b.gold], ['Index fund', b.index]].filter((r) => r[1] != null);
   const max = Math.max(...rows.map((r) => r[1]), d.me?.netWorth || 0);
   $('rBench').innerHTML = `<p class="muted" style="margin:0 0 8px;font-size:14px;">All ${money(rv.contributed)} of paychecks, invested the day they arrived (no surprise bills):</p>` +
     rows.map(([label, v]) => `<div class="bench"><div class="bl">${label}</div><div class="bt"><div style="width:${(v / max * 100).toFixed(1)}%"></div></div><div class="bv">${money(v)}</div></div>`).join('') +
@@ -918,7 +1071,7 @@ function holdingsHtml(me, rv){
   if (me.cash >= 1) rows.push(['💵 Pocket cash', me.cash, null]);
   for (const [id, h] of Object.entries(me.holdings)) {
     const stock = rv.stocks.find((s) => s.id === id);
-    const label = INV[id] ? `${INV[id].icon} ${INV[id].name}` : stock ? `🏷️ ${esc(stock.name)} <span class="muted">(${esc(stock.real)})</span>` : esc(id);
+    const label = INV[id] ? `${INV[id].icon} ${INV[id].name}` : stock ? `🏷️ ${esc(stock.name)} <span class="muted">(${esc(stock.real)}${h.shares ? `, ${fmtShares(h.shares)} sh` : ''})</span>` : esc(id);
     rows.push([label, h.value, h.cost]);
   }
   if (me.debt > 0) rows.push(['💳 Credit card debt', -me.debt, null]);
@@ -997,6 +1150,7 @@ $('playToo').addEventListener('submit', async (e) => {
   S.player = r.data.player; S.token = r.data.token;
   await poll();
 });
+$('tickerClose').addEventListener('click', resetTicker);
 $('hbPause').addEventListener('click', () => hostOp(S.data?.room.status === 'paused' ? 'resume' : 'pause'));
 $('hbEnd').addEventListener('click', () => { if (confirm('End the game now for everyone?')) hostOp('end'); });
 $('startBtn').addEventListener('click', () => hostOp('start', { yearSeconds: Number($('speed').value) }));
@@ -1008,9 +1162,16 @@ $('payDebtBtn').addEventListener('click', async () => {
 });
 
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go],[data-breakcd]');
+  const t = e.target.closest('[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
   if (!t) { if (e.target === $('overlay')) closeSheet(); return; }
   if (t.dataset.go) { show(t.dataset.go); return; }
+  if (t.dataset.qty) {
+    S.qty = t.dataset.qty;
+    try { localStorage.setItem('stax:qty', S.qty); } catch {}
+    document.querySelectorAll('.qty').forEach((b) => b.classList.toggle('on', b.dataset.qty === S.qty));
+    return;
+  }
+  if (t.dataset.quick) { quickTrade(t.dataset.asset, t.dataset.quick); return; }
   if ('close' in t.dataset) { closeSheet(); return; }
   if (t.dataset.lesson) { openLesson(t.dataset.lesson); return; }
   if (t.dataset.open) { openSheet(t.dataset.open === 'stocks' ? 'stocks' : 'trade', t.dataset.open); return; }
@@ -1019,10 +1180,29 @@ document.addEventListener('click', async (e) => {
     $('amt').value = v === 'all' ? Math.floor(S.data.me.cash * 100) / 100 : v;
     return;
   }
-  if (t.dataset.breakcd) {
-    const lot = S.data.me.holdings.cd?.lots.find((l) => l.id === t.dataset.breakcd);
-    if (!lot || !confirm(`Break this CD early? You'll get ${money(lot.breakValue)} (3 months of interest is the penalty).`)) return;
-    if (await doTrade('cd', 'sell', null, lot.id)) { toast(`🔓 Broke a CD: +${money(lot.breakValue)} to pocket cash`, '', 2500); renderPlay(); }
+  if (t.dataset.shares) {
+    const asset = t.dataset.asset, side = t.dataset.side, n = t.dataset.shares;
+    const before = S.data.me.holdings[asset]?.shares || 0;
+    if (await doTrade(asset, side, null, null, n === 'max' || n === 'all' ? n : Number(n))) {
+      const diff = Math.abs((S.data.me.holdings[asset]?.shares || 0) - before);
+      toast(`✅ ${side === 'buy' ? 'Bought' : 'Sold'} ${fmtShares(diff)} share${diff === 1 ? '' : 's'} of ${nameOf(asset)}`, 'good', 2500);
+      renderPlay();
+    } else toast(S.lastError || 'Could not trade.', 'bad');
+    return;
+  }
+  if (t.dataset.paybill) {
+    const bill = S.data.me.bills.find((b) => String(b.id) === t.dataset.paybill);
+    if (await doTrade('bill', 'pay', null, t.dataset.paybill)) { toast(`✅ Paid ${bill ? bill.title.replace(/\.$/, '') + ': ' + money(bill.amount) : 'the bill'}`, 'good', 3000); renderPlay(); }
+    else toast(S.lastError || 'Could not pay.', 'bad');
+    return;
+  }
+  if (t.dataset.cashout) {
+    const kind = t.dataset.kind;
+    const lot = S.data.me.holdings[kind]?.lots.find((l) => l.id === t.dataset.cashout);
+    if (!lot) return;
+    if (kind === 'cd' && !confirm(`Break this CD early? You'll get ${money(lot.breakValue)} (3 months of interest is the penalty).`)) return;
+    if (await doTrade(kind, 'sell', null, lot.id)) { toast(`🔓 +${money(lot.breakValue)} to pocket cash`, 'good', 2500); renderPlay(); }
+    else toast(S.lastError || 'Could not do that.', 'bad');
     return;
   }
   if (t.dataset.kick) {
@@ -1042,8 +1222,8 @@ document.addEventListener('click', async (e) => {
     }
     const ok = await doTrade(asset, side, amount);
     if (ok) {
-      const label = INV[asset]?.name || S.data.market.stocks.find((s) => s.id === asset)?.name;
-      toast(side === 'buy' ? `✅ Bought ${label}` : `✅ Sold ${label}`, 'good', 2000);
+      const [, , boughtV, soldV] = verbs(asset);
+      toast(`✅ ${side === 'buy' ? boughtV : soldV}${asset === 'savings' ? '' : ' ' + nameOf(asset)}`, 'good', 2000);
       $('amt').value = '';
       renderPlay();
     }

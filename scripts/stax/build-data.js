@@ -7,9 +7,11 @@
 //   "Historical Returns on Stocks, Bonds, Bills..." (histretSP.xls).
 //   S&P 500 incl. dividends, 3-month T-bill, 10-year T-bond, Baa corporate
 //   bonds, US home prices, gold, and CPI inflation.
-// - cd-rates.csv: monthly rates from the Federal Reserve's H.15 release —
-//   the 6-month CD rate (secondary market) through June 2013, when the Fed
-//   stopped publishing it, and the 1-year Treasury yield after that.
+// - rates.csv: monthly rates from the Federal Reserve's H.15 release.
+//   CDs: the 6-month CD rate (secondary market) through June 2013, when the
+//   Fed stopped publishing it, then the 1-year Treasury yield.
+//   Government bonds: 1-month, 3-month and 1-year Treasury yields. The
+//   1-month series starts in July 2001; before that we use the 3-month.
 // - Yahoo Finance monthly closes: the S&P 500 (^GSPC) for the month-to-month
 //   shape of the index fund, and dividend/split-adjusted closes for each
 //   company in companies.js.
@@ -92,7 +94,6 @@ async function main() {
 
   const assets = {
     savings: round(smooth(years, 'tbill')),
-    treasury: round(smooth(years, 'tbond')),
     index: round(indexFund(years, gspc)),
     realestate: round(smooth(years, 'realestate')),
     gold: round(smooth(years, 'gold')),
@@ -110,21 +111,31 @@ async function main() {
     await new Promise((r) => setTimeout(r, 250));
   }
 
-  // CD rate for each index month k (the average for calendar month k).
-  const cdText = await fs.readFile(path.join(ROOT, 'scripts/stax/cd-rates.csv'), 'utf8');
-  const cdByMonth = {};
-  for (const row of cdText.trim().split('\n').slice(1)) {
-    const [month, cd6m, tsy1y] = row.split(',');
-    const v = cd6m !== '' ? Number(cd6m) : tsy1y !== '' ? Number(tsy1y) : null;
-    if (v != null) cdByMonth[month] = v / 100;
+  // Rates for each index month k (the average for calendar month k).
+  const rateText = await fs.readFile(path.join(ROOT, 'scripts/stax/rates.csv'), 'utf8');
+  const [rateHead, ...rateRows] = rateText.trim().split('\n');
+  const rcols = rateHead.split(',');
+  const byMonth = {};
+  for (const row of rateRows) {
+    const v = row.split(',');
+    const rec = {};
+    rcols.forEach((c, i) => { rec[c] = v[i] === '' || v[i] == null ? null : Number(v[i]) / 100; });
+    byMonth[v[0]] = rec;
   }
-  const cdRate = [];
+  const pick = (rec, ...keys) => { for (const k of keys) if (rec?.[k] != null) return rec[k]; return null; };
+  const rates = { cd: [], b1: [], b3: [], b12: [] };
   for (let k = 0; k <= MONTHS; k++) {
     const y = FIRST_YEAR + Math.floor((k - 1) / 12);
     const m = ((k - 1) % 12 + 12) % 12 + 1;
-    cdRate.push(cdByMonth[`${y}-${String(m).padStart(2, '0')}`] ?? null);
+    const rec = byMonth[`${y}-${String(m).padStart(2, '0')}`];
+    rates.cd.push(pick(rec, 'cd6m', 'tsy1y'));
+    rates.b1.push(pick(rec, 'tsy1m', 'tsy3m'));
+    rates.b3.push(pick(rec, 'tsy3m', 'bill3m'));
+    rates.b12.push(pick(rec, 'tsy1y'));
   }
-  if (cdRate.slice(12).some((v) => v == null)) throw new Error('CD rates have gaps');
+  for (const [key, arr] of Object.entries(rates)) {
+    if (arr.slice(12).some((v) => v == null)) throw new Error(`${key} rates have gaps`);
+  }
 
   const cpi = [];
   for (let y = FIRST_YEAR; y <= LAST_YEAR; y++) cpi.push(Number(years[y].cpi.toFixed(5)));
@@ -136,8 +147,9 @@ export const LAST_YEAR = ${LAST_YEAR};
 export const ASSET_INDEX = ${JSON.stringify(assets)};
 export const STOCKS = ${JSON.stringify(stocks)};
 export const CPI = ${JSON.stringify(cpi)};
-// Annual CD rate (decimal) for each month; null where there's no data.
-export const CD_RATE = ${JSON.stringify(cdRate)};
+// Annual rates (decimal) for each month: CDs and 1-month, 3-month, 1-year
+// government bonds. null where there's no data.
+export const RATES = ${JSON.stringify(rates)};
 `;
   await fs.mkdir(path.join(ROOT, 'api/_lib'), { recursive: true });
   await fs.writeFile(path.join(ROOT, 'api/_lib/stax-data.js'), out);

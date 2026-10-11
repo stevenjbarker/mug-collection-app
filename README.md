@@ -40,8 +40,10 @@ needs the new passcode.
 
 A multiplayer classroom game: 20 real years of market history (somewhere
 between 1986 and 2025, revealed at the end), a $4,000 paycheck every 6 months,
-seven investments that unlock over time, surprise bills, and a live
-leaderboard. The pig button on the passcode screen opens it.
+investments that unlock over time (savings, CDs, an index fund, 5–10 real
+companies under made-up names, 1-month/3-month/1-year government bonds, real
+estate, gold), surprise bills the player has to pay within 3 months, and a
+live leaderboard. The host can also play from the same tab. The pig button on the passcode screen opens it.
 
 - **Hosting** needs its own passcode, `STAX_HOST_PASSCODE` (not the mug
   passcode). Players only need the 4-letter room code.
@@ -49,8 +51,8 @@ leaderboard. The pig button on the passcode screen opens it.
   Redis, connected to this project). It adds `KV_REST_API_URL` and
   `KV_REST_API_TOKEN`. Rooms expire after two days.
 - **Data:** `scripts/stax/annual-returns.csv` (from Aswath Damodaran's
-  historical returns), `scripts/stax/cd-rates.csv` (Federal Reserve H.15:
-  6-month CD rate to mid-2013, then the 1-year Treasury yield) and `scripts/stax/companies.js` (the real companies
+  historical returns), `scripts/stax/rates.csv` (Federal Reserve H.15: CD
+  and 1-month/3-month/1-year Treasury rates) and `scripts/stax/companies.js` (the real companies
   behind the disguised stocks). To refresh, run
   `node scripts/stax/build-data.js`, which writes `api/_lib/stax-data.js`.
 - The server is the only source of prices; players never receive prices from

@@ -155,7 +155,8 @@ export const POST = handle(async (request) => {
     for (let attempt = 0; attempt < 3; attempt++) {
       const rec = await store.getPlayer(code, String(body.player || ''));
       if (!rec || !sameHash(body.token, rec.player.tokenHash)) return json({ error: 'not in game' }, 403);
-      const next = game.trade(room, rec.player, month, { asset: String(body.asset), side: String(body.side), amount: body.amount, lot: body.lot == null ? undefined : String(body.lot) });
+      const next = game.trade(room, rec.player, month, { asset: String(body.asset), side: String(body.side), amount: body.amount, lot: body.lot == null ? undefined : String(body.lot),
+        shares: body.shares == null ? undefined : body.shares === 'max' || body.shares === 'all' ? body.shares : Number(body.shares) });
       try {
         await store.savePlayer(code, rec.raw, next);
         return json({ me: { id: next.id, name: next.name, v: next.v, ...game.summarize(room, next, month) } });

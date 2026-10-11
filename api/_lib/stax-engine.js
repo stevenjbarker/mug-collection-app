@@ -1,7 +1,7 @@
 // Game rules for Stax. Pure functions: everything is computed from the room,
 // a player record, and the game month, so the server stays the only source
 // of truth and players never see prices from the future.
-import { ASSET_INDEX, STOCKS, CPI, CD_RATE, FIRST_YEAR } from './stax-data.js';
+import { ASSET_INDEX, STOCKS, CPI, RATES, FIRST_YEAR } from './stax-data.js';
 
 export const GAME_MONTHS = 240;
 export const PAYCHECK = 4000;
@@ -9,13 +9,26 @@ export const PAY_EVERY = 6;
 export const START_YEARS = [1986, 2006]; // 20-year windows that fit the data
 export const CARD_APR = 0.22;
 const STOCKS_UNLOCK = 36;
-export const CD_TERM = 12;          // months a CD is locked up
-const CD_PENALTY_MONTHS = 3;        // breaking a CD early costs this much interest
+const BONDS_UNLOCK = 60;
+export const BILL_DUE = 3;          // months to pay a surprise bill before it goes on the card
+const STOCKS_PER_GAME = [5, 10];
+
+// Fixed-term deposits: money is locked in at that month's real rate and paid
+// back to pocket cash at maturity. CDs charge a penalty to cash out early;
+// government bonds can be sold any time at full value.
+export const TERMS = {
+  cd: { term: 12, penaltyMonths: 3 },
+  b1: { term: 1, penaltyMonths: 0 },
+  b3: { term: 3, penaltyMonths: 0 },
+  b12: { term: 12, penaltyMonths: 0 },
+};
+
+const BOND_LESSON = 'A government bond is a loan to the U.S. government. You lend money for a set time — 1 month, 3 months, or 1 year — at the interest rate of the day you buy, and get it back with interest when it matures. Longer bonds usually pay more, but your money is tied up longer (you can sell early here without a penalty). Rates change over time, so watch them.';
 
 export const INVESTMENTS = [
   {
     id: 'savings', name: 'Savings Account', unlock: 0, risk: 'Very low',
-    lesson: 'A savings account pays you a small amount of interest to hold your money. It almost never loses value, so it is the home for your emergency fund. Surprise bills happen, and when they do, money comes out of savings first. No savings? It goes on a credit card at 22% interest.',
+    lesson: 'A savings account pays you a small amount of interest to hold your money, and you can deposit or withdraw any time. It is the home for your emergency fund: surprise bills have to be paid from pocket cash, so having savings to withdraw keeps you off the credit card.',
   },
   {
     id: 'cd', name: 'CDs', unlock: 12, risk: 'Very low',
@@ -29,10 +42,9 @@ export const INVESTMENTS = [
     id: 'stocks', name: 'Individual Stocks', unlock: STOCKS_UNLOCK, risk: 'High',
     lesson: 'A share of stock is a piece of ownership in one company. If the company grows, so does your share, and if it struggles, you can lose a lot. These are real companies with their names changed. Read the descriptions and decide who you believe in.',
   },
-  {
-    id: 'treasury', name: 'Government Bonds', unlock: 60, risk: 'Low',
-    lesson: 'A bond is a loan. When you buy a government bond you lend money to the U.S. government, and it pays you interest. Bond prices move opposite to interest rates: when rates jump, existing bonds lose value for a while.',
-  },
+  { id: 'b1', name: 'Gov. Bond · 1 month', unlock: BONDS_UNLOCK, risk: 'Very low', lesson: BOND_LESSON },
+  { id: 'b3', name: 'Gov. Bond · 3 months', unlock: BONDS_UNLOCK, risk: 'Very low', lesson: BOND_LESSON },
+  { id: 'b12', name: 'Gov. Bond · 1 year', unlock: BONDS_UNLOCK, risk: 'Low', lesson: BOND_LESSON },
   {
     id: 'realestate', name: 'Real Estate', unlock: 84, risk: 'Medium',
     lesson: 'This tracks the price of U.S. homes. Real estate usually rises slowly with the economy, but when a housing bubble pops, prices can fall for years.',
@@ -140,7 +152,16 @@ export function newRoomSettings(seed) {
     events.push({ month: 40 + i * 110 + Math.floor(r() * 40), ...e });
   }
   events.sort((a, b) => a.month - b.month);
-  return { startYear, events };
+  // Each game deals a random handful of companies that trade for at least
+  // two years of the game.
+  const k0 = (startYear - FIRST_YEAR) * 12;
+  const eligible = STOCKS.filter((s) => s.listed - k0 <= GAME_MONTHS - 24).map((s) => s.id);
+  const count = STOCKS_PER_GAME[0] + Math.floor(r() * (STOCKS_PER_GAME[1] - STOCKS_PER_GAME[0] + 1));
+  const stockIds = [];
+  while (stockIds.length < Math.min(count, eligible.length)) {
+    stockIds.push(eligible.splice(Math.floor(r() * eligible.length), 1)[0]);
+  }
+  return { startYear, events, stockIds };
 }
 
 const startIndex = (room) => (room.startYear - FIRST_YEAR) * 12;
@@ -163,6 +184,11 @@ function stockById(id) {
   return STOCKS.find((s) => s.id === id);
 }
 
+// The companies dealt for this room (older rooms used all of them).
+function roomStocks(room) {
+  return room.stockIds ? STOCKS.filter((s) => room.stockIds.includes(s.id)) : STOCKS;
+}
+
 export function price(room, asset, month) {
   const k = startIndex(room) + month;
   if (asset === 'card') return Math.pow(1 + CARD_APR, month / 12);
@@ -178,34 +204,9 @@ export function price(room, asset, month) {
   return (v / first) * startPrice(s);
 }
 
-// ---------- CDs ----------
-
-// The CD rate on offer at the start of a game month (last month's average).
-export function cdRate(room, month) {
-  return CD_RATE[startIndex(room) + month];
-}
-
-function cdValue(lot, month) {
-  const held = Math.min(Math.max(0, month - lot.start), CD_TERM);
-  return lot.amount * Math.pow(1 + lot.rate, held / 12);
-}
-
-function cdBreakValue(lot, month) {
-  const penalty = lot.amount * (Math.pow(1 + lot.rate, CD_PENALTY_MONTHS / 12) - 1);
-  return Math.max(0, cdValue(lot, month) - penalty);
-}
-
-// Pays out every CD that has matured by `month` into pocket cash.
-function matureCds(p, month) {
-  const keep = [];
-  for (const lot of p.cds) {
-    if (lot.start + CD_TERM <= month) {
-      const value = round2(cdValue(lot, lot.start + CD_TERM));
-      p.cashDelta += value;
-      p.matured = [...p.matured, { id: lot.id, month: lot.start + CD_TERM, value }].slice(-5);
-    } else keep.push(lot);
-  }
-  p.cds = keep;
+// The rate on offer at the start of a game month (last month's average).
+export function rateFor(room, kind, month) {
+  return RATES[kind][startIndex(room) + month];
 }
 
 // A believable share price for a stock's first appearance in the game.
@@ -229,57 +230,86 @@ export function stockListedMonth(room, s) {
 }
 
 function isAvailable(room, asset, month) {
-  if (asset === 'card') return true;
+  if (asset === 'card' || asset === 'bill') return true;
   const inv = INVESTMENTS.find((i) => i.id === asset);
   if (inv && inv.id !== 'stocks') return month >= inv.unlock;
-  const s = stockById(asset);
-  return !!s && month >= stockListedMonth(room, s) && s.listed - startIndex(room) <= GAME_MONTHS;
+  const s = roomStocks(room).find((x) => x.id === asset);
+  return !!s && month >= stockListedMonth(room, s);
+}
+
+// ---------- Fixed-term lots (CDs and government bonds) ----------
+
+function lotValue(lot, month) {
+  const held = Math.min(Math.max(0, month - lot.start), TERMS[lot.kind].term);
+  return lot.amount * Math.pow(1 + lot.rate, held / 12);
+}
+
+function lotCashOut(lot, month) {
+  const pen = TERMS[lot.kind].penaltyMonths;
+  const penalty = pen ? lot.amount * (Math.pow(1 + lot.rate, pen / 12) - 1) : 0;
+  return Math.max(0, lotValue(lot, month) - penalty);
+}
+
+const KIND_LABEL = { cd: 'A CD', b1: 'A 1-month bond', b3: 'A 3-month bond', b12: 'A 1-year bond' };
+
+function note(p, id, text, kind) {
+  p.log = [...p.log, { id, text, kind }].slice(-8);
+}
+
+// Pays out every lot that has matured by `month` into pocket cash.
+function matureLots(p, month) {
+  const keep = [];
+  for (const lot of p.lots) {
+    const end = lot.start + TERMS[lot.kind].term;
+    if (end <= month) {
+      const value = round2(lotValue(lot, end));
+      p.cashDelta += value;
+      note(p, `m:${lot.id}`, `${KIND_LABEL[lot.kind]} matured: +$${value.toLocaleString('en-US')} back in your pocket cash.`, 'good');
+    } else keep.push(lot);
+  }
+  p.lots = keep;
+}
+
+// Bills nobody paid in time go on the credit card.
+function chargeOverdueBills(room, p, month) {
+  const keep = [];
+  for (const b of p.bills) {
+    if (b.due <= month) {
+      p.debtUnits += b.amount / price(room, 'card', b.due);
+      note(p, `c:${b.id}`, `Unpaid bill went on your credit card: ${b.title} $${b.amount.toLocaleString('en-US')} (22% interest).`, 'bad');
+    } else keep.push(b);
+  }
+  p.bills = keep;
 }
 
 // ---------- Players ----------
 
 export function newPlayer(id, name, tokenHash) {
-  return { id, name, tokenHash, cashDelta: 0, units: {}, cost: {}, cds: [], matured: [], debtUnits: 0, eventsDone: 0, trades: 0, v: 0 };
+  return { id, name, tokenHash, cashDelta: 0, units: {}, cost: {}, lots: [], bills: [], log: [], debtUnits: 0, eventsDone: 0, trades: 0, v: 0 };
 }
 
 const paychecks = (month) => Math.min(GAME_MONTHS / PAY_EVERY, Math.floor(month / PAY_EVERY) + 1);
 const cashOf = (p, month) => round2(paychecks(month) * PAYCHECK + p.cashDelta);
 
-// Applies surprise expenses, windfalls, and CD payouts up to `month`, in
-// order, at the prices of the month they happened. Returns a new player.
+// Brings a player up to `month`: windfalls are added, surprise bills become
+// due (the player pays them), deposits mature, and late bills go on the card.
+// Everything happens in order, at the prices of the month it happened.
 export function settle(room, player, month) {
   const p = structuredClone(player);
-  p.cds ||= [];
-  p.matured ||= [];
+  p.lots ||= (p.cds || []).map((l) => ({ ...l, kind: 'cd' }));
+  delete p.cds;
+  p.bills ||= [];
+  p.log ||= [];
   while (p.eventsDone < room.events.length && room.events[p.eventsDone].month <= month) {
     const e = room.events[p.eventsDone];
-    matureCds(p, e.month);
-    if (e.amount > 0) {
-      p.cashDelta += e.amount;
-    } else {
-      // Pay from pocket cash, then savings, then by breaking CDs, then the card.
-      let owed = -e.amount;
-      const fromCash = Math.min(owed, Math.max(0, cashOf(p, e.month)));
-      p.cashDelta -= fromCash;
-      owed -= fromCash;
-      if (owed > 0 && p.units.savings) {
-        const px = price(room, 'savings', e.month);
-        const take = Math.min(owed, p.units.savings * px);
-        sellUnits(p, 'savings', take / px);
-        owed -= take;
-      }
-      while (owed > 0 && p.cds.length) {
-        const lot = p.cds.pop();
-        const got = cdBreakValue(lot, e.month);
-        const used = Math.min(owed, got);
-        owed -= used;
-        p.cashDelta += got - used;
-      }
-      if (owed > 0) p.debtUnits += owed / price(room, 'card', e.month);
-    }
+    matureLots(p, e.month);
+    chargeOverdueBills(room, p, e.month);
+    if (e.amount > 0) p.cashDelta += e.amount;
+    else p.bills.push({ id: p.eventsDone, title: e.title, amount: -e.amount, due: e.month + BILL_DUE });
     p.eventsDone++;
   }
-  matureCds(p, month);
+  matureLots(p, month);
+  chargeOverdueBills(room, p, month);
   p.cashDelta = round2(p.cashDelta);
   return p;
 }
@@ -294,56 +324,100 @@ function sellUnits(p, asset, units) {
 
 export class TradeError extends Error {}
 
-// side: 'buy' | 'sell' | 'pay' (pay down card debt). amount: dollars or 'all'.
-export function trade(room, player, month, { asset, side, amount, lot }) {
+const SHORT = 'Not enough pocket cash.';
+
+// side: 'buy' | 'sell' | 'pay'. amount: dollars or 'all'. lot: a CD/bond lot
+// id to cash out, or a bill id to pay. shares: for stocks, a whole number of
+// shares, 'max' (as many as cash allows) or 'all' (sell everything).
+export function trade(room, player, month, { asset, side, amount, lot, shares }) {
   const p = settle(room, player, month);
   if (!isAvailable(room, asset, month)) throw new TradeError("That investment isn't available yet.");
   const cash = cashOf(p, month);
-  if (asset === 'cd') {
-    if (side === 'buy') {
-      const amt = amount === 'all' ? cash : Number(amount);
-      if (!(amt >= 1)) throw new TradeError(cash < 1 ? 'No pocket cash left. Payday is every 6 months.' : 'Enter an amount.');
-      if (amt > cash + 0.005) throw new TradeError('Not enough pocket cash.');
-      p.cashDelta -= amt;
-      p.cds.push({ id: `${month}-${p.trades}`, amount: round2(amt), rate: cdRate(room, month), start: month });
-    } else if (side === 'sell') {
-      const breaking = lot === 'all' ? p.cds : p.cds.filter((l) => l.id === lot);
-      if (!breaking.length) throw new TradeError("You don't have that CD.");
-      for (const l of breaking) p.cashDelta += cdBreakValue(l, month);
-      p.cds = p.cds.filter((l) => !breaking.includes(l));
-    } else {
-      throw new TradeError('Bad trade.');
-    }
-    p.cashDelta = round2(p.cashDelta);
-    p.trades++;
-    p.v++;
-    return p;
-  }
-  const px = price(room, asset, month);
-  if (side === 'pay') {
-    if (asset !== 'card') throw new TradeError('Bad trade.');
+  const buyAmount = () => {
+    const amt = amount === 'all' ? cash : Number(amount);
+    if (!(amt >= 1)) throw new TradeError(cash < 1 ? 'No pocket cash left. Payday is every 6 months.' : 'Enter an amount.');
+    if (amt > cash + 0.005) throw new TradeError(SHORT);
+    return round2(amt);
+  };
+
+  if (asset === 'bill') {
+    const bill = p.bills.find((b) => String(b.id) === String(lot));
+    if (!bill) throw new TradeError('That bill is already taken care of.');
+    if (bill.amount > cash + 0.005) throw new TradeError('Not enough pocket cash. Withdraw from savings or sell something first.');
+    p.cashDelta -= bill.amount;
+    p.bills = p.bills.filter((b) => b !== bill);
+  } else if (asset === 'card') {
+    const px = price(room, 'card', month);
     const debt = p.debtUnits * px;
     const amt = amount === 'all' ? Math.min(cash, debt) : Math.min(Number(amount), debt);
-    if (!(amt > 0)) throw new TradeError(debt > 0 ? 'Not enough pocket cash.' : 'You have no card debt.');
-    if (amt > cash + 0.005) throw new TradeError('Not enough pocket cash.');
+    if (!(amt > 0)) throw new TradeError(debt > 0 ? SHORT : 'You have no card debt.');
+    if (amt > cash + 0.005) throw new TradeError(SHORT);
     p.cashDelta -= amt;
     p.debtUnits = Math.max(0, p.debtUnits - amt / px);
     if (p.debtUnits * px < 0.01) p.debtUnits = 0;
-  } else if (side === 'buy') {
-    const amt = amount === 'all' ? cash : Number(amount);
-    if (!(amt >= 1)) throw new TradeError(cash < 1 ? 'No pocket cash left. Payday is every 6 months.' : 'Enter an amount.');
-    if (amt > cash + 0.005) throw new TradeError('Not enough pocket cash.');
-    p.cashDelta -= amt;
-    p.units[asset] = (p.units[asset] || 0) + amt / px;
-    p.cost[asset] = (p.cost[asset] || 0) + amt;
-  } else if (side === 'sell') {
-    const have = (p.units[asset] || 0) * px;
-    const amt = amount === 'all' ? have : Math.min(Number(amount), have);
-    if (!(amt > 0)) throw new TradeError("You don't own any.");
-    sellUnits(p, asset, amount === 'all' ? p.units[asset] : amt / px);
-    p.cashDelta += amt;
+  } else if (TERMS[asset]) {
+    if (side === 'buy') {
+      const amt = buyAmount();
+      p.cashDelta -= amt;
+      p.lots.push({ id: `${month}-${p.trades}`, kind: asset, amount: amt, rate: rateFor(room, asset, month), start: month });
+    } else if (side === 'sell') {
+      const mine = p.lots.filter((l) => l.kind === asset);
+      if (!mine.length) throw new TradeError("You don't own any.");
+      if (lot != null) {
+        // Cash out one specific lot (how CDs are broken).
+        const l = mine.find((x) => x.id === lot);
+        if (!l) throw new TradeError("You don't have that one.");
+        p.cashDelta += lotCashOut(l, month);
+        p.lots = p.lots.filter((x) => x !== l);
+      } else {
+        if (TERMS[asset].penaltyMonths) throw new TradeError('Pick which CD to break.');
+        // Bonds: take the amount from the newest bonds first, at full value.
+        let want = amount === 'all' ? Infinity : Number(amount);
+        if (!(want > 0)) throw new TradeError('Enter an amount.');
+        for (const l of [...mine].reverse()) {
+          if (want <= 0.005) break;
+          const v = lotValue(l, month);
+          const take = Math.min(want, v);
+          p.cashDelta += take;
+          want -= take;
+          if (take >= v - 0.005) p.lots = p.lots.filter((x) => x !== l);
+          else l.amount *= 1 - take / v;
+        }
+      }
+    } else throw new TradeError('Bad trade.');
+  } else if (shares != null && stockById(asset)) {
+    // Individual stocks trade in whole shares.
+    const px = price(room, asset, month);
+    const held = p.units[asset] || 0;
+    if (side === 'buy') {
+      const n = shares === 'max' ? Math.floor((cash + 0.005) / px) : Math.floor(Number(shares));
+      if (!(n >= 1)) throw new TradeError(shares === 'max' ? `Not enough pocket cash for even one share ($${px.toFixed(2)}).` : 'Pick how many shares.');
+      const cost = round2(n * px);
+      if (cost > cash + 0.005) throw new TradeError(`${n} shares cost $${cost.toLocaleString('en-US')}. ${SHORT}`);
+      p.cashDelta -= cost;
+      p.units[asset] = held + n;
+      p.cost[asset] = (p.cost[asset] || 0) + cost;
+    } else if (side === 'sell') {
+      if (!(held > 1e-9)) throw new TradeError("You don't own any shares.");
+      const n = shares === 'all' ? held : Math.min(held, Math.floor(Number(shares)));
+      if (!(n > 0)) throw new TradeError('Pick how many shares.');
+      sellUnits(p, asset, n);
+      p.cashDelta += n * px;
+    } else throw new TradeError('Bad trade.');
   } else {
-    throw new TradeError('Bad trade.');
+    const px = price(room, asset, month);
+    if (side === 'buy') {
+      const amt = buyAmount();
+      p.cashDelta -= amt;
+      p.units[asset] = (p.units[asset] || 0) + amt / px;
+      p.cost[asset] = (p.cost[asset] || 0) + amt;
+    } else if (side === 'sell') {
+      const have = (p.units[asset] || 0) * px;
+      const amt = amount === 'all' ? have : Math.min(Number(amount), have);
+      if (!(amt > 0)) throw new TradeError("You don't own any.");
+      sellUnits(p, asset, amount === 'all' ? p.units[asset] : amt / px);
+      p.cashDelta += amt;
+    } else throw new TradeError('Bad trade.');
   }
   p.cashDelta = round2(p.cashDelta);
   p.trades++;
@@ -359,21 +433,26 @@ export function summarize(room, player, month) {
   for (const [asset, units] of Object.entries(p.units)) {
     const value = round2(units * price(room, asset, month));
     holdings[asset] = { value, cost: round2(p.cost[asset] || 0) };
+    if (stockById(asset)) holdings[asset].shares = Math.round(units * 1000) / 1000;
     invested += value;
   }
-  if (p.cds.length) {
-    const lots = p.cds.map((l) => ({
-      id: l.id, amount: l.amount, rate: l.rate, value: round2(cdValue(l, month)),
-      breakValue: round2(cdBreakValue(l, month)), maturesIn: l.start + CD_TERM - month,
+  for (const kind of Object.keys(TERMS)) {
+    const mine = p.lots.filter((l) => l.kind === kind);
+    if (!mine.length) continue;
+    const lots = mine.map((l) => ({
+      id: l.id, amount: round2(l.amount), rate: l.rate, value: round2(lotValue(l, month)),
+      breakValue: round2(lotCashOut(l, month)), maturesIn: l.start + TERMS[kind].term - month,
     }));
     const value = round2(lots.reduce((t, l) => t + l.value, 0));
-    holdings.cd = { value, cost: round2(lots.reduce((t, l) => t + l.amount, 0)), lots };
+    holdings[kind] = { value, cost: round2(lots.reduce((t, l) => t + l.amount, 0)), lots };
     invested += value;
   }
+  const bills = p.bills.map((b) => ({ id: b.id, title: b.title, amount: b.amount, dueIn: b.due - month }));
+  const owed = bills.reduce((t, b) => t + b.amount, 0);
   const debt = round2(p.debtUnits * price(room, 'card', month));
   return {
-    cash, debt, holdings, matured: p.matured,
-    netWorth: round2(cash + invested - debt),
+    cash, debt, holdings, bills, log: p.log,
+    netWorth: round2(cash + invested - debt - owed),
     contributed: paychecks(month) * PAYCHECK,
   };
 }
@@ -391,16 +470,16 @@ function series(room, asset, from, month) {
 export function market(room, month) {
   const assets = INVESTMENTS.filter((i) => i.id !== 'stocks').map((i) => {
     const unlocked = month >= i.unlock;
-    if (i.id === 'cd') {
+    if (TERMS[i.id]) {
       const rates = [];
-      for (let m = Math.max(0, month - HISTORY); m <= month; m++) rates.push(Number((cdRate(room, m) * 100).toFixed(2)));
-      return { id: 'cd', unlocked, rate: unlocked ? rates[rates.length - 1] : null, history: unlocked ? rates : [], term: CD_TERM, penaltyMonths: CD_PENALTY_MONTHS };
+      for (let m = Math.max(0, month - HISTORY); m <= month; m++) rates.push(Number((rateFor(room, i.id, m) * 100).toFixed(2)));
+      return { id: i.id, unlocked, rate: unlocked ? rates[rates.length - 1] : null, history: unlocked ? rates : [], term: TERMS[i.id].term, penaltyMonths: TERMS[i.id].penaltyMonths };
     }
     return { id: i.id, unlocked, price: unlocked ? round2(price(room, i.id, month)) : null, history: unlocked ? series(room, i.id, 0, month) : [] };
   });
   const stocks = [];
   if (month >= STOCKS_UNLOCK) {
-    for (const s of STOCKS) {
+    for (const s of roomStocks(room)) {
       const lm = stockListedMonth(room, s);
       if (month < lm) continue;
       stocks.push({ id: s.id, name: s.name, blurb: blurbFor(room, s), listedMonth: lm, price: round2(price(room, s.id, month)), history: series(room, s.id, lm, month) });
@@ -420,7 +499,7 @@ export function news(room, month) {
     const key = `${room.startYear + Math.floor(c / 12)}-${String((c % 12) + 1).padStart(2, '0')}`;
     if (HEADLINES[key]) out.push({ month: m, kind: 'news', text: HEADLINES[key], at: c });
   }
-  for (const s of STOCKS) {
+  for (const s of roomStocks(room)) {
     const lm = s.listed - k0;
     if (lm > STOCKS_UNLOCK && lm <= month) out.push({ month: lm, kind: 'listing', text: `New on the market: ${s.name}. ${blurbFor(room, s)}` });
   }
@@ -443,7 +522,7 @@ export function reveal(room, month = GAME_MONTHS) {
   };
   let inflation = 1;
   for (let y = room.startYear; y < room.startYear + years; y++) inflation *= 1 + CPI[y - FIRST_YEAR];
-  const stocks = STOCKS.filter((s) => stockListedMonth(room, s) < end && s.listed - k0 <= end).map((s) => {
+  const stocks = roomStocks(room).filter((s) => stockListedMonth(room, s) < end && s.listed - k0 <= end).map((s) => {
     const lm = stockListedMonth(room, s);
     return { id: s.id, name: s.name, real: REAL_NAMES[s.ticker] || s.ticker, ticker: s.ticker, change: round2(price(room, s.id, end) / price(room, s.id, lm) - 1) };
   });
@@ -462,8 +541,8 @@ export function reveal(room, month = GAME_MONTHS) {
     contributed: Math.min(GAME_MONTHS / PAY_EVERY, Math.floor((end - 1) / PAY_EVERY) + 1) * PAYCHECK,
     benchmarks: {
       savings: strategy('savings'),
-      treasury: strategy('treasury'),
       index: strategy('index'),
+      realestate: strategy('realestate'),
       gold: strategy('gold'),
     },
     inflation: round2(inflation),
