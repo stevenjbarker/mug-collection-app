@@ -1,6 +1,7 @@
 // Game rules for Stax. Pure functions: everything is computed from the room,
 // a player record, and the game month, so the server stays the only source
 // of truth and players never see prices from the future.
+import { randomInt } from 'node:crypto';
 import { ASSET_INDEX, STOCKS, CPI, RATES, FIRST_YEAR } from './stax-data.js';
 
 export const GAME_MONTHS = 240;
@@ -48,6 +49,10 @@ export const INVESTMENTS = [
   {
     id: 'realestate', name: 'Real Estate', unlock: 84, risk: 'Medium',
     lesson: 'This tracks the price of U.S. homes. Real estate usually rises slowly with the economy, but when a housing bubble pops, prices can fall for years.',
+  },
+  {
+    id: 'roulette', name: 'Roulette', unlock: 204, risk: 'Gambling',
+    lesson: 'A roulette wheel has 38 pockets: 18 red, 18 black, plus 0 and 00. Bet on red or black and you double your money if you win, but you win only 18 times out of 38. Bet on 00 and you win 35 times your bet, but only 1 time in 38. Either way the casino keeps about 5 cents of every dollar bet over time. That is the house edge, and it is why casinos make money.',
   },
   {
     id: 'gold', name: 'Gold', unlock: 108, risk: 'High',
@@ -382,6 +387,8 @@ function sellUnits(p, asset, units) {
 
 export class TradeError extends Error {}
 
+const RED = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+
 const SHORT = 'Not enough pocket cash.';
 
 // side: 'buy' | 'sell' | 'pay'. amount: dollars or 'all'. lot: a CD/bond lot
@@ -392,7 +399,7 @@ export function trade(room, player, month, { asset, side, amount, lot, shares })
   if (!isAvailable(room, asset, month)) throw new TradeError("That investment isn't available yet.");
   const cash = cashOf(p, month);
   const BILL_FIRST = 'Pay your bill first. Withdraw or sell something if you need the cash.';
-  if (p.bills.length && side === 'buy') throw new TradeError(BILL_FIRST);
+  if (p.bills.length && (side === 'buy' || side === 'bet')) throw new TradeError(BILL_FIRST);
   const buyAmount = () => {
     const amt = amount === 'all' ? cash : Number(amount);
     if (!(amt >= 1)) throw new TradeError(cash < 1 ? 'No pocket cash left. Payday is every 6 months.' : 'Enter an amount.');
@@ -400,7 +407,19 @@ export function trade(room, player, month, { asset, side, amount, lot, shares })
     return round2(amt);
   };
 
-  if (asset === 'bill') {
+  if (asset === 'roulette') {
+    // An American wheel: 0, 00 and 1-36. Red/black pay 1 to 1; 00 pays 35 to 1.
+    if (side !== 'bet' || !['red', 'black', '00'].includes(lot)) throw new TradeError('Pick red, black or 00.');
+    const amt = buyAmount();
+    const n = randomInt(38); // 0 → "0", 37 → "00", otherwise the number
+    const label = n === 0 ? '0' : n === 37 ? '00' : String(n);
+    const color = n === 0 || n === 37 ? 'green' : RED.has(n) ? 'red' : 'black';
+    const win = lot === '00' ? n === 37 : color === lot;
+    const delta = win ? (lot === '00' ? amt * 35 : amt) : -amt;
+    p.cashDelta += delta;
+    const c = p.casino || { spins: 0, wagered: 0, net: 0 };
+    p.casino = { spins: c.spins + 1, wagered: round2(c.wagered + amt), net: round2(c.net + delta), last: { id: `${month}-${p.trades}`, label, color, pick: lot, amount: amt, delta: round2(delta) } };
+  } else if (asset === 'bill') {
     const bill = p.bills.find((b) => String(b.id) === String(lot));
     if (!bill) throw new TradeError('That bill is already taken care of.');
     const owe = round2(billValue(room, bill, month));
@@ -515,7 +534,7 @@ export function summarize(room, player, month) {
   const owed = bills.reduce((t, b) => t + b.amount, 0);
   const debt = round2(p.debtUnits * price(room, 'card', month));
   return {
-    cash, debt, holdings, bills, log: p.log,
+    cash, debt, holdings, bills, log: p.log, casino: p.casino || null,
     netWorth: round2(cash + invested - debt - owed),
     contributed: paychecks(month) * PAYCHECK,
   };
@@ -534,6 +553,7 @@ function series(room, asset, from, month) {
 export function market(room, month) {
   const assets = INVESTMENTS.filter((i) => i.id !== 'stocks').map((i) => {
     const unlocked = month >= i.unlock;
+    if (i.id === 'roulette') return { id: i.id, unlocked };
     if (TERMS[i.id]) {
       const rates = [];
       for (let m = Math.max(0, month - HISTORY); m <= month; m++) rates.push(Number((rateFor(room, i.id, m) * 100).toFixed(2)));

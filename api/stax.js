@@ -99,7 +99,7 @@ export const GET = handle(async (request) => {
     const s = game.summarize(room, player, month);
     const row = { id, name: player.name, netWorth: s.netWorth, debt: s.debt, trades: player.trades };
     // Everyone's portfolio is shown only once the game is over.
-    if (over) Object.assign(row, { cash: s.cash, holdings: s.holdings, bills: s.bills, contributed: s.contributed });
+    if (over) Object.assign(row, { cash: s.cash, holdings: s.holdings, bills: s.bills, contributed: s.contributed, casino: s.casino });
     return row;
   }).sort((a, b) => b.netWorth - a.netWorth);
 
