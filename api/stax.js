@@ -103,7 +103,9 @@ export const GET = handle(async (request) => {
     return row;
   }).sort((a, b) => b.netWorth - a.netWorth);
 
-  const body = { now, room: pub, leaderboard: board, news: game.news(room, month, me) };
+  // Which deploy answered, so open pages can tell when to reload.
+  const build = (process.env.VERCEL_GIT_COMMIT_SHA || process.env.VERCEL_DEPLOYMENT_ID || 'dev').slice(0, 12);
+  const body = { now, build, room: pub, leaderboard: board, news: game.news(room, month, me) };
   if (pub.status !== 'lobby') body.market = game.market(room, month);
   if (me) body.me = { id: me.id, name: me.name, v: me.v, ...game.summarize(room, me, month) };
   if (pub.status === 'done') {

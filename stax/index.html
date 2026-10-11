@@ -281,6 +281,7 @@
   .al-actions{display:flex;flex-direction:column;gap:10px;margin-top:18px;align-items:center;}
   .al-pay{font-size:19px;padding:14px 28px;min-width:260px;}
   .al-later{color:#ffe1da;border-color:rgba(255,255,255,.35);min-width:260px;}
+  .updatepill{position:fixed;bottom:calc(14px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:70;background:var(--gold);color:var(--ink);font-weight:800;font-size:14px;padding:8px 16px;border-radius:20px;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);cursor:pointer;}
   .conn{position:fixed;top:calc(6px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:70;background:var(--down);color:var(--ink);font-weight:800;font-size:13px;padding:5px 12px;border-radius:20px;border:2px solid var(--ink);pointer-events:none;}
   .toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:60;display:flex;flex-direction:column;gap:8px;width:min(520px,calc(100% - 32px));pointer-events:none;}
   .toast{background:var(--cream);color:var(--ink);border:2px solid var(--ink);box-shadow:0 4px 0 var(--ink);border-radius:14px;padding:11px 14px;font-weight:600;animation:pop .25s ease;pointer-events:auto;display:flex;gap:10px;align-items:flex-start;}
@@ -683,6 +684,7 @@
 <div class="overlay hidden" id="overlay"><div class="sheet" id="sheet"></div></div>
 <div class="alertscreen hidden" id="alertScreen" role="alertdialog" aria-modal="true"></div>
 <div class="conn hidden" id="conn">📶 Reconnecting…</div>
+<button class="updatepill hidden" id="updatePill" onclick="location.reload()">✨ New version — tap to reload</button>
 <div class="toasts" id="toasts"></div>
 
 <script>
@@ -980,6 +982,7 @@ async function poll(){
   }
   notFound = 0;
   const d = r.data;
+  checkForUpdate(d);
   S.clockOffset = d.now - (t0 + (Date.now() - t0) / 2);
   if (d.me && S.data?.me && d.me.v < S.meV) d.me = S.data.me; // a trade answer is newer than this poll
   if (d.me) S.meV = Math.max(S.meV, d.me.v);
@@ -1171,6 +1174,19 @@ function renderAlert(){
       <button class="btn al-pay" data-alertpay="${bill.id}" ${canPay ? '' : 'disabled'}>Pay ${money(bill.amount)} now</button>
       <button class="btn ghost al-later" data-alertlater>${canPay ? 'Pay later' : 'OK, I\'ll find the cash'}</button>
     </div></div>`);
+}
+
+// ---------- picking up new versions ----------
+// iPads keep pages open for days. When a newer version of the game is live,
+// reload at a calm moment (lobby or paused); mid-play, offer a reload button.
+let firstBuild = null;
+function checkForUpdate(d){
+  if (!d.build) return;
+  if (!firstBuild) { firstBuild = d.build; return; }
+  if (d.build === firstBuild) return;
+  const calm = ['lobby', 'paused'].includes(d.room?.status) && !S.busy && !$('play').querySelector('input:focus');
+  if (calm) { location.reload(); return; }
+  $('updatePill').classList.remove('hidden');
 }
 
 // ---------- error reporting ----------
