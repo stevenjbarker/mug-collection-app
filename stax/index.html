@@ -678,7 +678,7 @@ const INV = {
 };
 // Dashboard order; 'stocks' expands into one card per company once unlocked.
 INV.roulette = { name: 'Roulette', icon: '🎰', risk: 'Gambling', unlock: 204,
-  lesson: 'A roulette wheel has 38 pockets: 18 red, 18 black, plus 0 and 00 (green). Bet on red or black and you double your money if you win, but only 18 times in 38. Bet on 00 and you win 35 times your bet, but only 1 time in 38. Either way the casino keeps about 5 cents of every dollar bet over time. That is the house edge, and it is why casinos always make money.' };
+  lesson: 'A roulette wheel has 38 pockets: 18 red, 18 black, plus 0 and 00 (green). Bet on red or black and you double your money if you win, but only 18 times in 38. Bet on 0 or 00 and you win 35 times your bet, but only 1 time in 38. Either way the casino keeps about 5 cents of every dollar bet over time. That is the house edge, and it is why casinos always make money.' };
 INV.bonds = { name: 'Government Bonds', icon: '🏛️', risk: 'Very low risk', unlock: 60, lessonKey: 'bonds', lesson: BOND_LESSON };
 const BOND_TERMS = [{ id: 'b1', n: 1, unit: 'Month' }, { id: 'b3', n: 3, unit: 'Months' }, { id: 'b12', n: 1, unit: 'Year' }];
 const ORDER = ['savings','cd','index','stocks','bonds','realestate','gold','roulette'];
@@ -1056,7 +1056,7 @@ function syncRoulette(d, canBuy){
   if (!card) return;
   card.querySelectorAll('.rlp').forEach((b) => b.classList.toggle('on', b.dataset.rl === S.rlPick));
   const bet = rlBet();
-  $('rlOdds').textContent = S.rlPick === '00' ? `Bet ${money(bet)} · win ${money(bet * 35)} · 1 in 38` : `Bet ${money(bet)} · win ${money(bet)} · 18 in 38`;
+  $('rlOdds').textContent = S.rlPick === '00' || S.rlPick === '0' ? `Bet ${money(bet)} · win ${money(bet * 35)} · 1 in 38` : `Bet ${money(bet)} · win ${money(bet)} · 18 in 38`;
   card.querySelector('[data-spin]').disabled = !canBuy || S.busy || S.spinning || bet < 1;
 }
 async function spin(){
@@ -1296,10 +1296,10 @@ function renderPlay(){
       cards.push({ key: id, cls: 'inv roulettecard', open: null,
         html: `${badge}${head(inv.icon)}
         <div class="wheelrow"><div class="ball ${last ? last.color : 'idle'}" id="rlBall">${last ? last.label : '?'}</div>
-          <div class="rlres" id="rlRes">${last ? (last.delta > 0 ? `<b class="up">Won ${money(last.delta)}</b>` : `<b class="down">Lost ${money(-last.delta)}</b>`) + `<br><span class="muted">bet ${money(last.amount)} on ${last.pick === '00' ? '00' : last.pick}</span>` : '<span class="muted">Place a bet and spin.</span>'}</div></div>
+          <div class="rlres" id="rlRes">${last ? (last.delta > 0 ? `<b class="up">Won ${money(last.delta)}</b>` : `<b class="down">Lost ${money(-last.delta)}</b>`) + `<br><span class="muted">bet ${money(last.amount)} on ${last.pick}</span>` : '<span class="muted">Place a bet and spin.</span>'}</div></div>
         <div class="row rlbet" style="margin-top:3px;"><span class="muted">Total bet</span><span class="mine">${money(c?.wagered || 0)}</span></div>
         <div class="row"><span class="muted">Casino profit</span><span class="${(c?.net || 0) > 0 ? 'up' : (c?.net || 0) < 0 ? 'down' : 'muted'}">${(c?.net || 0) >= 0 ? '+' : '−'}${money(Math.abs(c?.net || 0))}</span></div>`,
-        actions: `<div class="rlpicks"><button class="rlp red" data-rl="red">Red</button><button class="rlp black" data-rl="black">Black</button><button class="rlp green" data-rl="00">00</button></div>
+        actions: `<div class="rlpicks"><button class="rlp red" data-rl="red">Red</button><button class="rlp black" data-rl="black">Black</button><button class="rlp green" data-rl="0">0</button><button class="rlp green" data-rl="00">00</button></div>
           <div class="rlodds" id="rlOdds"></div>
           <button class="qbtn buy" data-spin>Spin</button>` });
       continue;

@@ -52,7 +52,7 @@ export const INVESTMENTS = [
   },
   {
     id: 'roulette', name: 'Roulette', unlock: 204, risk: 'Gambling',
-    lesson: 'A roulette wheel has 38 pockets: 18 red, 18 black, plus 0 and 00. Bet on red or black and you double your money if you win, but you win only 18 times out of 38. Bet on 00 and you win 35 times your bet, but only 1 time in 38. Either way the casino keeps about 5 cents of every dollar bet over time. That is the house edge, and it is why casinos make money.',
+    lesson: 'A roulette wheel has 38 pockets: 18 red, 18 black, plus 0 and 00. Bet on red or black and you double your money if you win, but you win only 18 times out of 38. Bet on 0 or 00 and you win 35 times your bet, but only 1 time in 38. Either way the casino keeps about 5 cents of every dollar bet over time. That is the house edge, and it is why casinos make money.',
   },
   {
     id: 'gold', name: 'Gold', unlock: 108, risk: 'High',
@@ -408,14 +408,15 @@ export function trade(room, player, month, { asset, side, amount, lot, shares })
   };
 
   if (asset === 'roulette') {
-    // An American wheel: 0, 00 and 1-36. Red/black pay 1 to 1; 00 pays 35 to 1.
-    if (side !== 'bet' || !['red', 'black', '00'].includes(lot)) throw new TradeError('Pick red, black or 00.');
+    // An American wheel: 0, 00 and 1-36. Red/black pay 1 to 1; 0 or 00 pays 35 to 1.
+    if (side !== 'bet' || !['red', 'black', '0', '00'].includes(lot)) throw new TradeError('Pick red, black, 0 or 00.');
     const amt = buyAmount();
     const n = randomInt(38); // 0 → "0", 37 → "00", otherwise the number
     const label = n === 0 ? '0' : n === 37 ? '00' : String(n);
     const color = n === 0 || n === 37 ? 'green' : RED.has(n) ? 'red' : 'black';
-    const win = lot === '00' ? n === 37 : color === lot;
-    const delta = win ? (lot === '00' ? amt * 35 : amt) : -amt;
+    const single = lot === '0' || lot === '00';
+    const win = lot === '00' ? n === 37 : lot === '0' ? n === 0 : color === lot;
+    const delta = win ? (single ? amt * 35 : amt) : -amt;
     p.cashDelta += delta;
     const c = p.casino || { spins: 0, wagered: 0, net: 0 };
     p.casino = { spins: c.spins + 1, wagered: round2(c.wagered + amt), net: round2(c.net + delta), last: { id: `${month}-${p.trades}`, label, color, pick: lot, amount: amt, delta: round2(delta) } };
