@@ -21,7 +21,7 @@
 //   company in companies.js.
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { COMPANIES } from './companies.js';
+import { COMPANIES, MORE_COMPANIES, INDUSTRY_SUFFIXES } from './companies.js';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..');
 const FIRST_YEAR = 1985; // Yahoo's monthly history for most companies starts here
@@ -48,7 +48,8 @@ async function yahoo(symbol) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=${p1}&period2=${p2}&interval=1mo`;
   const res = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0' } });
   if (!res.ok) throw new Error(`${symbol}: HTTP ${res.status}`);
-  const r = (await res.json()).chart.result[0];
+  const r = (await res.json()).chart.result?.[0];
+  if (!r) throw new Error(`${symbol}: no data`);
   const closes = (r.indicators.adjclose?.[0]?.adjclose) || r.indicators.quote[0].close;
   // Month k of our index = month-end close of that calendar month.
   const byMonth = new Array(MONTHS + 1).fill(null);
@@ -57,6 +58,7 @@ async function yahoo(symbol) {
     const k = (d.getUTCFullYear() - FIRST_YEAR) * 12 + d.getUTCMonth() + 1;
     if (k >= 0 && k <= MONTHS && closes[i] != null) byMonth[k] = closes[i];
   });
+  byMonth.realName = r.meta.longName || r.meta.shortName || symbol;
   return byMonth;
 }
 
@@ -104,16 +106,24 @@ async function main() {
   };
 
   const stocks = [];
-  for (const c of COMPANIES) {
-    const raw = await yahoo(c.ticker);
+  const all = [
+    ...COMPANIES,
+    ...MORE_COMPANIES.map((c, i) => ({ ...c, id: `c${27 + i}`, name: `Company ${27 + i}`, suffixes: INDUSTRY_SUFFIXES[c.industry] })),
+  ];
+  for (const c of all) {
+    let raw;
+    try { raw = await yahoo(c.ticker); } catch (e) { console.log(`skip ${c.ticker}: ${e.message}`); continue; }
     const first = raw.findIndex((v) => v != null);
+    // Needs at least 3 years of trading inside the data range to be useful.
+    if (first < 0 || first > MONTHS - 36) { console.log(`skip ${c.ticker}: too little history`); continue; }
     // Fill any single-month gaps with the previous close.
     for (let k = first + 1; k <= MONTHS; k++) if (raw[k] == null) raw[k] = raw[k - 1];
-    const norm = raw.map((v) => (v == null ? null : v / raw[first]));
-    stocks.push({ ...c, listed: first, prices: round(norm) });
-    console.log(`${c.ticker.padEnd(6)} listed month ${first} (${FIRST_YEAR + Math.floor((first - 1) / 12)})`);
-    await new Promise((r) => setTimeout(r, 250));
+    const norm = raw.map((v) => (v == null ? null : Number((v / raw[first]).toPrecision(5))));
+    const { industry, ...rest } = c;
+    stocks.push({ ...rest, real: raw.realName, listed: first, prices: norm });
+    await new Promise((r) => setTimeout(r, 200));
   }
+  console.log(`${stocks.length} companies`);
 
   // Rates for each index month k (the average for calendar month k).
   const rateText = await fs.readFile(path.join(ROOT, 'scripts/stax/rates.csv'), 'utf8');

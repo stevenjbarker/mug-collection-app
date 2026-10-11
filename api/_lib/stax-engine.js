@@ -635,7 +635,7 @@ export function reveal(room, month = GAME_MONTHS) {
   for (let y = room.startYear; y < room.startYear + years; y++) inflation *= 1 + CPI[y - FIRST_YEAR];
   const stocks = roomStocks(room).filter((s) => stockListedMonth(room, s) < end && s.listed - k0 <= end).map((s) => {
     const lm = stockListedMonth(room, s);
-    return { id: s.id, name: nameIn(room, s), real: REAL_NAMES[s.ticker] || s.ticker, ticker: s.ticker, change: round2(price(room, s.id, end) / price(room, s.id, lm) - 1) };
+    return { id: s.id, name: nameIn(room, s), real: REAL_NAMES[s.ticker] || s.real || s.ticker, ticker: s.ticker, change: round2(price(room, s.id, end) / price(room, s.id, lm) - 1) };
   });
   // What really happened, with the real dates.
   const MONTH_NAMES_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
