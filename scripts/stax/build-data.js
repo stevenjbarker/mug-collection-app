@@ -12,6 +12,10 @@
 //   Fed stopped publishing it, then the 1-year Treasury yield.
 //   Government bonds: 1-month, 3-month and 1-year Treasury yields. The
 //   1-month series starts in July 2001; before that we use the 3-month.
+//   Credit cards (for late bills): the Fed's G.19 commercial bank rate on
+//   credit card plans, all accounts (quarterly, from Nov 1994), and before
+//   that the yearly averages in the Fed's 2014 Report to the Congress on the
+//   Profitability of Credit Card Operations.
 // - Yahoo Finance monthly closes: the S&P 500 (^GSPC) for the month-to-month
 //   shape of the index fund, and dividend/split-adjusted closes for each
 //   company in companies.js.
@@ -123,7 +127,7 @@ async function main() {
     byMonth[v[0]] = rec;
   }
   const pick = (rec, ...keys) => { for (const k of keys) if (rec?.[k] != null) return rec[k]; return null; };
-  const rates = { cd: [], b1: [], b3: [], b12: [] };
+  const rates = { cd: [], b1: [], b3: [], b12: [], card: [] };
   for (let k = 0; k <= MONTHS; k++) {
     const y = FIRST_YEAR + Math.floor((k - 1) / 12);
     const m = ((k - 1) % 12 + 12) % 12 + 1;
@@ -132,6 +136,7 @@ async function main() {
     rates.b1.push(pick(rec, 'tsy1m', 'tsy3m'));
     rates.b3.push(pick(rec, 'tsy3m', 'bill3m'));
     rates.b12.push(pick(rec, 'tsy1y'));
+    rates.card.push(pick(rec, 'card'));
   }
   for (const [key, arr] of Object.entries(rates)) {
     if (arr.slice(12).some((v) => v == null)) throw new Error(`${key} rates have gaps`);
@@ -147,8 +152,8 @@ export const LAST_YEAR = ${LAST_YEAR};
 export const ASSET_INDEX = ${JSON.stringify(assets)};
 export const STOCKS = ${JSON.stringify(stocks)};
 export const CPI = ${JSON.stringify(cpi)};
-// Annual rates (decimal) for each month: CDs and 1-month, 3-month, 1-year
-// government bonds. null where there's no data.
+// Annual rates (decimal) for each month: CDs, 1-month, 3-month and 1-year
+// government bonds, and the average credit card rate. null where there's no data.
 export const RATES = ${JSON.stringify(rates)};
 `;
   await fs.mkdir(path.join(ROOT, 'api/_lib'), { recursive: true });

@@ -107,6 +107,7 @@
   .bill .cbody{flex:1;min-width:0;}
   .bill .qa{margin-top:0;flex:none;width:70px;}
   .bill .down{color:#b3261e;}
+  .bill s{opacity:.6;font-size:12px;}
   .bill small{display:block;font-size:12px;line-height:1.3;margin-top:2px;opacity:.85;}
   .sheetmsg{min-height:0;font-size:14px;font-weight:600;border-radius:10px;}
   .sheetmsg:not(:empty){margin:10px 0 0;padding:8px 10px;background:var(--bg2);}
@@ -313,7 +314,7 @@
       <li>The game runs through 20 real years of market history. Which years? You'll find out at the end.</li>
       <li>Every 6 months you get a <b style="color:var(--cream);">$4,000 paycheck</b> to invest.</li>
       <li>New investments unlock as the years go by.</li>
-      <li>Life happens: surprise bills must be paid within 3 months, and you can't buy anything until you do. If you don't pay, the game sells your stuff to cover it.</li>
+      <li>Life happens: surprise bills show up and you can't buy anything until they're paid. Miss the 3-month due date and the bill starts charging credit card interest every month.</li>
     </ul>
   </div>
   <button class="linkbtn" id="leaveBtn" style="margin-top:12px;">Leave game</button>
@@ -439,7 +440,7 @@
     <ul class="news" id="rTimeline"></ul>
   </div>
   <button class="btn" id="againBtn" style="margin-top:22px;">Back to start</button>
-  <p class="muted" style="font-size:12px;margin-top:22px;line-height:1.5;">Real history: yearly returns for savings (3-month T-bills), the S&amp;P 500, U.S. home prices and gold from Aswath Damodaran, NYU Stern. CD and government bond rates from the Federal Reserve (H.15): the 6-month CD rate through mid-2013, then the 1-year Treasury yield; 1-month, 3-month and 1-year Treasury yields (the 1-month uses the 3-month before 2001). Monthly stock prices from Yahoo Finance, adjusted for dividends and splits.</p>
+  <p class="muted" style="font-size:12px;margin-top:22px;line-height:1.5;">Real history: yearly returns for savings (3-month T-bills), the S&amp;P 500, U.S. home prices and gold from Aswath Damodaran, NYU Stern. Credit card rates for late bills from the Federal Reserve (G.19, and its 2014 report to Congress for years before late 1994). CD and government bond rates from the Federal Reserve (H.15): the 6-month CD rate through mid-2013, then the 1-year Treasury yield; 1-month, 3-month and 1-year Treasury yields (the 1-month uses the 3-month before 2001). Monthly stock prices from Yahoo Finance, adjusted for dividends and splits.</p>
 </section>
 
 <!-- ============ SHEET + TOASTS ============ -->
@@ -714,7 +715,7 @@ function announce(d){
     if (S.seenNews.has(k)) continue;
     S.seenNews.add(k);
     if (first || !d.me) continue;
-    if (n.kind === 'expense') toast(`😬 ${n.text} A ${money(-n.amount)} bill is due. Pay it within 3 months; no buying until it's paid.`, 'bad', 8000);
+    if (n.kind === 'expense') toast(`😬 ${n.text} A ${money(-n.amount)} bill is due. Pay it within 3 months or it starts charging credit card interest. No buying until it's paid.`, 'bad', 8000);
     else if (n.kind === 'windfall') toast(`🎉 ${n.text} +${money(n.amount)}`, 'good');
     else if (n.kind === 'listing') toast(`🔔 New stock: ${n.text.replace('New on the market: ', '').split('.')[0]}`, 'news');
     else toast('📰 ' + n.text, 'news', 7000);
@@ -724,7 +725,7 @@ function announce(d){
   for (const l of d.me.log || []) {
     if (S.seenLog.has(l.id)) continue;
     S.seenLog.add(l.id);
-    toast((l.kind === 'bad' ? '💳 ' : '🔓 ') + l.text, l.kind, 6000);
+    toast((l.kind === 'bad' ? '🔥 ' : '🔓 ') + l.text, l.kind, 8000);
   }
   const m = Math.floor(d.room.month);
   const payIdx = Math.min(39, Math.floor(m / 6));
@@ -775,7 +776,9 @@ function renderPlay(){
   // Bills waiting to be paid.
   patchList($('billsBar'), (me.bills || []).map((b) => ({
     key: 'bill' + b.id, cls: 'bill',
-    html: `<span>😬 <b>${esc(b.title)}</b> ${money(b.amount)} · ${b.dueIn <= 1 ? '<b class="down">due this month</b>' : `due in ${b.dueIn} months`}<br><small>${me.cash < b.amount ? 'Not enough cash: withdraw savings or sell something, then pay.' : 'Pay it before you can buy anything.'} If it's still unpaid when it's due, your things get sold to cover it.</small></span>`,
+    html: b.overdue
+      ? `<span>🔥 <b>${esc(b.title)}</b> <b class="down">OVERDUE</b> · now ${money(b.amount)} <s>${money(b.original)}</s><br><small>You haven't paid this yet, so it's charging ${b.apr}% interest (the average credit card rate) every month. ${me.cash < b.amount ? 'Withdraw savings or sell something, then pay.' : 'Pay it now. No buying until you do.'}</small></span>`
+      : `<span>😬 <b>${esc(b.title)}</b> ${money(b.amount)} · ${b.dueIn <= 1 ? '<b class="down">due this month</b>' : `due in ${b.dueIn} months`}<br><small>${me.cash < b.amount ? 'Not enough cash: withdraw savings or sell something, then pay.' : 'Pay it before you can buy anything.'} If it's not paid by the due date, it starts charging credit card interest.</small></span>`,
     actions: `<button class="qbtn buy" data-paybill="${b.id}" ${running && me.cash >= b.amount ? '' : 'disabled'}>Pay</button>`,
   })));
 

@@ -10,7 +10,7 @@ export const START_YEARS = [1986, 2006]; // 20-year windows that fit the data
 export const CARD_APR = 0.22;
 const STOCKS_UNLOCK = 36;
 const BONDS_UNLOCK = 60;
-export const BILL_DUE = 3;          // months to pay a surprise bill before it goes on the card
+export const BILL_DUE = 3;          // months to pay a surprise bill before it starts charging interest
 const STOCKS_PER_GAME = [5, 10];
 
 // Fixed-term deposits: money is locked in at that month's real rate and paid
@@ -270,63 +270,22 @@ function matureLots(p, month) {
   p.lots = keep;
 }
 
-const fmt$ = (n) => '$' + Math.round(n).toLocaleString('en-US');
+// A bill not paid by its due date keeps growing at the average credit card
+// rate of the time, compounded monthly, until the player pays it.
+function billValue(room, b, month) {
+  let v = b.amount;
+  for (let m = b.due; m < month; m++) v *= 1 + rateFor(room, 'card', m) / 12;
+  return v;
+}
 
-// A bill still open at its deadline gets paid for the player, at that month's
-// prices: pocket cash first, then savings, then bonds, then CDs (with the
-// penalty), then their biggest investments. Only if there is truly nothing
-// left does the rest go on the credit card.
-function payOverdueBills(room, p, month) {
-  const keep = [];
+function flagOverdueBills(room, p, month) {
   for (const b of p.bills) {
-    if (b.due > month) { keep.push(b); continue; }
-    const m = b.due;
-    let owed = b.amount;
-    const fromCash = Math.min(owed, Math.max(0, cashOf(p, m)));
-    p.cashDelta -= fromCash;
-    owed -= fromCash;
-    const sold = [];
-    const raise = (amount, label) => {
-      const used = Math.min(owed, amount);
-      owed -= used;
-      p.cashDelta += amount - used; // anything extra lands in pocket cash
-      sold.push(label);
-    };
-    if (owed > 0.005 && p.units.savings) {
-      const px = price(room, 'savings', m);
-      const take = Math.min(owed, p.units.savings * px);
-      sellUnits(p, 'savings', take / px);
-      owed -= take;
-      sold.push('savings');
-    }
-    for (const kind of ['b1', 'b3', 'b12', 'cd']) {
-      for (const l of p.lots.filter((x) => x.kind === kind).reverse()) {
-        if (owed <= 0.005) break;
-        p.lots = p.lots.filter((x) => x !== l);
-        raise(lotCashOut(l, m), kind === 'cd' ? 'a CD' : 'a bond');
-      }
-    }
-    const others = Object.keys(p.units).filter((a) => a !== 'savings')
-      .map((a) => ({ a, value: p.units[a] * price(room, a, m) }))
-      .sort((x, y) => y.value - x.value);
-    for (const { a } of others) {
-      if (owed <= 0.005) break;
-      const px = price(room, a, m);
-      const take = Math.min(owed, p.units[a] * px);
-      sellUnits(p, a, take / px);
-      owed -= take;
-      sold.push(a);
-    }
-    const names = [...new Set(sold.map((x) => INVESTMENTS.find((i) => i.id === x)?.name || stockById(x)?.name || x))];
-    if (owed > 0.005) {
-      p.debtUnits += owed / price(room, 'card', m);
-      note(p, `c:${b.id}`, `${b.title.replace(/[.!]$/, '')}: the bill was overdue and you ran out of things to sell — ${fmt$(owed)} went on your credit card at 22%.`, 'bad');
-    } else {
-      note(p, `c:${b.id}`, `${b.title.replace(/[.!]$/, '')}: the bill was overdue, so it was paid for you${names.length ? ' by selling ' + names.join(', ') : ' from pocket cash'}.`, 'bad');
+    if (b.due <= month && !b.overdue) {
+      b.overdue = true;
+      const apr = (rateFor(room, 'card', b.due) * 100).toFixed(1);
+      note(p, `o:${b.id}`, `You haven't paid "${b.title.replace(/[.!]$/, '')}" yet. Charging you ${apr}% interest (the average credit card rate) until you do.`, 'bad');
     }
   }
-  p.bills = keep;
-  p.cashDelta = round2(p.cashDelta);
 }
 
 // ---------- Players ----------
@@ -339,8 +298,8 @@ const paychecks = (month) => Math.min(GAME_MONTHS / PAY_EVERY, Math.floor(month 
 const cashOf = (p, month) => round2(paychecks(month) * PAYCHECK + p.cashDelta);
 
 // Brings a player up to `month`: windfalls are added, surprise bills become
-// due (the player pays them), deposits mature, and late bills are paid for
-// them by selling things.
+// due (the player pays them), deposits mature, and late bills start
+// charging credit card interest.
 // Everything happens in order, at the prices of the month it happened.
 export function settle(room, player, month) {
   const p = structuredClone(player);
@@ -351,13 +310,13 @@ export function settle(room, player, month) {
   while (p.eventsDone < room.events.length && room.events[p.eventsDone].month <= month) {
     const e = room.events[p.eventsDone];
     matureLots(p, e.month);
-    payOverdueBills(room, p, e.month);
+    flagOverdueBills(room, p, e.month);
     if (e.amount > 0) p.cashDelta += e.amount;
     else p.bills.push({ id: p.eventsDone, title: e.title, amount: -e.amount, due: e.month + BILL_DUE });
     p.eventsDone++;
   }
   matureLots(p, month);
-  payOverdueBills(room, p, month);
+  flagOverdueBills(room, p, month);
   p.cashDelta = round2(p.cashDelta);
   return p;
 }
@@ -393,8 +352,9 @@ export function trade(room, player, month, { asset, side, amount, lot, shares })
   if (asset === 'bill') {
     const bill = p.bills.find((b) => String(b.id) === String(lot));
     if (!bill) throw new TradeError('That bill is already taken care of.');
-    if (bill.amount > cash + 0.005) throw new TradeError('Not enough pocket cash. Withdraw from savings or sell something first.');
-    p.cashDelta -= bill.amount;
+    const owe = round2(billValue(room, bill, month));
+    if (owe > cash + 0.005) throw new TradeError('Not enough pocket cash. Withdraw from savings or sell something first.');
+    p.cashDelta -= owe;
     p.bills = p.bills.filter((b) => b !== bill);
   } else if (asset === 'card') {
     const px = price(room, 'card', month);
@@ -497,7 +457,10 @@ export function summarize(room, player, month) {
     holdings[kind] = { value, cost: round2(lots.reduce((t, l) => t + l.amount, 0)), lots };
     invested += value;
   }
-  const bills = p.bills.map((b) => ({ id: b.id, title: b.title, amount: b.amount, dueIn: b.due - month }));
+  const bills = p.bills.map((b) => ({
+    id: b.id, title: b.title, original: b.amount, amount: round2(billValue(room, b, month)), dueIn: b.due - month,
+    overdue: b.due <= month, apr: b.due <= month ? Number((rateFor(room, 'card', month) * 100).toFixed(1)) : null,
+  }));
   const owed = bills.reduce((t, b) => t + b.amount, 0);
   const debt = round2(p.debtUnits * price(room, 'card', month));
   return {
