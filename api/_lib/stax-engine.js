@@ -166,7 +166,14 @@ export function newRoomSettings(seed) {
   const eligible = STOCKS.filter((s) => s.listed - k0 <= GAME_MONTHS - 24).map((s) => s.id);
   const count = STOCKS_PER_GAME[0] + Math.floor(r() * (STOCKS_PER_GAME[1] - STOCKS_PER_GAME[0] + 1));
   const stockIds = [];
-  while (stockIds.length < Math.min(count, eligible.length)) {
+  // At least two "wild" companies (big booms and busts) in every game.
+  const wildPool = eligible.filter((id) => stockById(id).wild);
+  for (let i = 0; i < 2 && wildPool.length; i++) {
+    const id = wildPool.splice(Math.floor(r() * wildPool.length), 1)[0];
+    stockIds.push(id);
+    eligible.splice(eligible.indexOf(id), 1);
+  }
+  while (stockIds.length < Math.min(count, stockIds.length + eligible.length)) {
     stockIds.push(eligible.splice(Math.floor(r() * eligible.length), 1)[0]);
   }
   // Fresh made-up names every game: a random first word (never repeated in
@@ -413,6 +420,27 @@ export class TradeError extends Error {}
 
 const RED = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
 
+// The bets a player can make: how much they pay and which pockets win.
+const inRange = (lo, hi) => (n) => n >= lo && n <= hi && n !== 37;
+export function rouletteBet(lot) {
+  const k = String(lot || '');
+  const outside = {
+    red: (n, l, c) => c === 'red', black: (n, l, c) => c === 'black',
+    odd: (n) => n >= 1 && n <= 36 && n % 2 === 1, even: (n) => n >= 1 && n <= 36 && n % 2 === 0,
+    low: inRange(1, 18), high: inRange(19, 36),
+  };
+  if (outside[k]) return { pays: 1, wins: outside[k] };
+  const dozens = { d1: inRange(1, 12), d2: inRange(13, 24), d3: inRange(25, 36) };
+  if (dozens[k]) return { pays: 2, wins: dozens[k] };
+  // A single number: "n:17", "n:0", "n:00" (and plain "0"/"00" from older pages).
+  const num = k.startsWith('n:') ? k.slice(2) : k;
+  if (num === '00' || (/^\d{1,2}$/.test(num) && Number(num) <= 36)) {
+    const want = num === '00' ? '00' : String(Number(num));
+    return { pays: 35, wins: (n, l) => l === want };
+  }
+  return null;
+}
+
 const SHORT = 'Not enough pocket cash.';
 
 // side: 'buy' | 'sell' | 'pay'. amount: dollars or 'all'. lot: a CD/bond lot
@@ -432,15 +460,17 @@ export function trade(room, player, month, { asset, side, amount, lot, shares })
   };
 
   if (asset === 'roulette') {
-    // An American wheel: 0, 00 and 1-36. Red/black pay 1 to 1; 0 or 00 pays 35 to 1.
-    if (side !== 'bet' || !['red', 'black', '0', '00'].includes(lot)) throw new TradeError('Pick red, black, 0 or 00.');
+    // An American wheel: 0, 00 and 1-36. Outside bets (red/black, odd/even,
+    // 1-18/19-36) pay 1 to 1, a dozen pays 2 to 1, a single number 35 to 1.
+    // 0 and 00 lose every outside bet.
+    const bet = rouletteBet(lot);
+    if (side !== 'bet' || !bet) throw new TradeError('Pick a bet.');
     const amt = buyAmount();
     const n = randomInt(38); // 0 → "0", 37 → "00", otherwise the number
     const label = n === 0 ? '0' : n === 37 ? '00' : String(n);
     const color = n === 0 || n === 37 ? 'green' : RED.has(n) ? 'red' : 'black';
-    const single = lot === '0' || lot === '00';
-    const win = lot === '00' ? n === 37 : lot === '0' ? n === 0 : color === lot;
-    const delta = win ? (single ? amt * 35 : amt) : -amt;
+    const win = bet.wins(n, label, color);
+    const delta = win ? amt * bet.pays : -amt;
     p.cashDelta += delta;
     const c = p.casino || { spins: 0, wagered: 0, net: 0 };
     p.casino = { spins: c.spins + 1, wagered: round2(c.wagered + amt), net: round2(c.net + delta), last: { id: `${month}-${p.trades}`, label, color, pick: lot, amount: amt, delta: round2(delta) } };

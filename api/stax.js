@@ -127,7 +127,8 @@ export const GET = handle(async (request) => {
         if (me && hist.players[me.id]) body.history = { months: hist.months, series: hist.players[me.id].series };
         body.compare = {
           months: hist.months,
-          players: Object.entries(hist.players).map(([id, p]) => ({ id, name: p.name, total: p.series.total })),
+          // Everyone's full breakdown, so the results chart can switch players.
+          players: Object.entries(hist.players).map(([id, p]) => ({ id, name: p.name, total: p.series.total, series: p.series })),
         };
       } catch (e) { console.error('history', e); }
     }

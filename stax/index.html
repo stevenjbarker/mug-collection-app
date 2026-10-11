@@ -127,6 +127,16 @@
   .rlp{flex:1;border:2px solid transparent;border-radius:9px;padding:6px 0;font-weight:800;font-size:13px;color:#fff;cursor:pointer;opacity:.6;}
   .rlp.red{background:#c62f35;} .rlp.black{background:#151515;} .rlp.green{background:#1f8a4c;}
   .rlp.on{opacity:1;border-color:#d8b45a;box-shadow:0 0 0 2px rgba(216,180,90,.35);}
+  .rlp.rlmore{flex:1.6;font-size:12px;}
+  .rlgroup{margin:8px 0;}
+  .rlgl{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;}
+  .rlrow{display:flex;gap:5px;flex-wrap:wrap;}
+  .rlnums{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:5px;}
+  .rlcell{flex:1;min-width:52px;padding:8px 4px;border-radius:8px;border:2px solid var(--line);background:var(--bg2);color:var(--cream);font-weight:800;font-size:14px;cursor:pointer;}
+  .rlcell.red{background:#c62f35;color:#fff;border-color:#c62f35;} .rlcell.black{background:#151515;color:#fff;border-color:#151515;} .rlcell.green{background:#1f8a4c;color:#fff;border-color:#1f8a4c;}
+  .rlnums .rlcell{min-width:0;padding:6px 0;font-size:13px;}
+  .rlcell.on{border-color:var(--gold);box-shadow:0 0 0 3px rgba(216,180,90,.5);}
+  .rlsummary{margin:10px 0 4px;font-size:14px;}
   .rlodds{font-size:12px;color:var(--muted);text-align:center;}
   .inv.cat-fund{border-top:4px solid var(--gold);}
   .inv.cat-stock{border:1px solid #5b7fd1;border-top:4px solid #7aa2ff;background:linear-gradient(180deg,#26324a,#22304a 60%,#25344d);}
@@ -277,6 +287,7 @@
   .al-box h2{font-size:34px;margin:6px 0 4px;line-height:1.15;}
   .al-amount{font-size:56px;font-weight:900;font-variant-numeric:tabular-nums;color:#fff;text-shadow:0 3px 0 rgba(0,0,0,.35);margin:6px 0 10px;}
   .al-box p{font-size:17px;line-height:1.45;margin:8px auto;max-width:440px;}
+  .al-cash{margin:6px auto 4px;font-size:18px;background:rgba(0,0,0,.25);border-radius:12px;padding:8px 14px;display:inline-block;}
   .al-short{background:rgba(0,0,0,.25);border-radius:12px;padding:10px 14px;font-size:15px !important;}
   .al-actions{display:flex;flex-direction:column;gap:10px;margin-top:18px;align-items:center;}
   .al-pay{font-size:19px;padding:14px 28px;min-width:260px;}
@@ -316,6 +327,9 @@
   .bench .bv{width:100px;text-align:right;font-weight:700;}
   table.reveal{width:100%;border-collapse:collapse;font-size:14px;}
   table.reveal td{padding:7px 4px;border-bottom:1px solid var(--line);}
+  .pills{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px;}
+  .pill{border:1px solid var(--line);background:var(--bg2);color:var(--cream);border-radius:20px;padding:5px 12px;font-size:13px;font-weight:700;cursor:pointer;}
+  .pill.on{background:var(--gold);color:var(--ink);border-color:var(--ink);}
   .htotal{display:flex;flex-direction:column;margin:0 0 4px;}
   .htotal span{font-size:12px;text-transform:uppercase;letter-spacing:1px;}
   .htotal b{font-family:'Abril Fatface',Georgia,serif;font-weight:400;font-size:34px;color:var(--gold);}
@@ -646,7 +660,8 @@
   <div class="years" id="rYears"></div>
   <div class="card" id="rMine"></div>
   <div class="card" style="text-align:left;" id="rChartCard">
-    <h2>Your money over time</h2>
+    <h2 id="rChartTitle">Your money over time</h2>
+    <div class="pills" id="rPlayerPills"></div>
     <div class="htotal" id="rTotal"></div>
     <p class="muted" style="margin:0 0 6px;font-size:13px;">Total assets and how much you had in each kind of investment. Drag across the chart to see the numbers.</p>
     <div id="rChart" class="hchart"></div>
@@ -994,7 +1009,7 @@ async function poll(){
 function forget(){
   if (S.code) { store.del('stax:p:' + S.code); store.del('stax:h:' + S.code); }
   store.del('stax:last');
-  S = { ...S, role: null, code: null, player: null, token: null, hostKey: null, data: null, meV: -1, seenNews: null, lastPayIdx: null, seenUnlock: null, seenLog: null, gateShown: null };
+  S = { ...S, role: null, code: null, player: null, token: null, hostKey: null, data: null, meV: -1, seenNews: null, lastPayIdx: null, seenUnlock: null, seenLog: null, gateShown: null, chartPlayer: null };
   alertQueue.length = 0; alertShown = null; $('alertScreen').classList.add('hidden');
 }
 
@@ -1092,6 +1107,17 @@ function syncBondCard(d, canBuy){
   card.querySelector('[data-bondmax]').disabled = !canBuy;
   card.dataset.open = S.bondTerm;
 }
+// Roulette bets: label, how much a win pays, and how many of the 38 pockets win.
+const RL_REDS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+const RL_BETS = {
+  red: ['Red', 1, 18], black: ['Black', 1, 18], odd: ['Odd', 1, 18], even: ['Even', 1, 18],
+  low: ['1–18', 1, 18], high: ['19–36', 1, 18], d1: ['1st 12', 2, 12], d2: ['2nd 12', 2, 12], d3: ['3rd 12', 2, 12],
+};
+function rlInfo(pick){
+  if (RL_BETS[pick]) { const [label, pays, wins] = RL_BETS[pick]; return { label, pays, wins }; }
+  const num = String(pick).replace(/^n:/, '');
+  return { label: num, pays: 35, wins: 1 };
+}
 function rlBet(){
   const cash = S.data?.me?.cash || 0;
   return S.qty === 'all' ? cash : Math.min(Number(S.qty), cash);
@@ -1099,13 +1125,19 @@ function rlBet(){
 function syncRoulette(d, canBuy){
   const card = document.querySelector('.roulettecard');
   if (!card) return;
-  card.querySelectorAll('.rlp').forEach((b) => b.classList.toggle('on', b.dataset.rl === S.rlPick));
+  const quick = S.rlPick === 'red' || S.rlPick === 'black';
+  card.querySelectorAll('.rlp').forEach((b) => b.classList.toggle('on', b.dataset.rl ? b.dataset.rl === S.rlPick : !quick));
+  const more = card.querySelector('[data-rlmore]');
+  if (more) more.textContent = quick ? 'More bets…' : `On ${rlInfo(S.rlPick).label}`;
   const bet = rlBet();
-  $('rlOdds').textContent = S.rlPick === '00' || S.rlPick === '0' ? `Bet ${money(bet)} · win ${money(bet * 35)} · 1 in 38` : `Bet ${money(bet)} · win ${money(bet)} · 18 in 38`;
+  const info = rlInfo(S.rlPick);
+  $('rlOdds').textContent = `${money(bet)} on ${info.label} · win ${money(bet * info.pays)} · ${info.wins} in 38`;
   card.querySelector('[data-spin]').disabled = !canBuy || S.busy || S.spinning || bet < 1;
+  if (S.sheet?.type === 'roulette') renderSheet();
 }
 async function spin(){
   if (S.spinning) return;
+  if (S.sheet?.type === 'roulette') closeSheet();
   const bet = rlBet();
   if (!(bet >= 1)) { toast('No pocket cash to bet.', 'bad'); return; }
   const amount = S.qty === 'all' || bet >= S.data.me.cash - 0.005 ? 'all' : bet;
@@ -1169,6 +1201,7 @@ function renderAlert(){
        <div class="al-amount">${money(bill.amount)}</div>
        <p>Pay it within <b>3 months</b> or it starts charging credit card interest. You can't buy anything until it's paid.</p>`;
   setHtml($('alertScreen'), `<div class="al-box">${head}
+    <div class="al-cash">💵 You have <b>${money(me.cash)}</b> in pocket cash${me.holdings?.savings ? ` and <b>${money(me.holdings.savings.value)}</b> in savings` : ''}.</div>
     ${canPay ? '' : `<p class="al-short">${S.data.room.status !== 'running' ? 'The game is paused.' : `You only have ${money(me.cash)} in pocket cash. Withdraw savings or sell something, then pay from the bill bar at the top.`}</p>`}
     <div class="al-actions">
       <button class="btn al-pay" data-alertpay="${bill.id}" ${canPay ? '' : 'disabled'}>Pay ${money(bill.amount)} now</button>
@@ -1389,10 +1422,10 @@ function renderPlay(){
       cards.push({ key: id, cls: 'inv roulettecard', open: null,
         html: `${badge}${head(inv.icon)}
         <div class="wheelrow"><div class="ball ${last ? last.color : 'idle'}" id="rlBall">${last ? last.label : '?'}</div>
-          <div class="rlres" id="rlRes">${last ? (last.delta > 0 ? `<b class="up">Won ${money(last.delta)}</b>` : `<b class="down">Lost ${money(-last.delta)}</b>`) + `<br><span class="muted">bet ${money(last.amount)} on ${last.pick}</span>` : '<span class="muted">Place a bet and spin.</span>'}</div></div>
+          <div class="rlres" id="rlRes">${last ? (last.delta > 0 ? `<b class="up">Won ${money(last.delta)}</b>` : `<b class="down">Lost ${money(-last.delta)}</b>`) + `<br><span class="muted">bet ${money(last.amount)} on ${rlInfo(last.pick).label}</span>` : '<span class="muted">Place a bet and spin.</span>'}</div></div>
         <div class="row rlbet" style="margin-top:3px;"><span class="muted">Total bet</span><span class="mine">${money(c?.wagered || 0)}</span></div>
         <div class="row"><span class="muted">Casino profit</span><span class="${(c?.net || 0) > 0 ? 'up' : (c?.net || 0) < 0 ? 'down' : 'muted'}">${(c?.net || 0) >= 0 ? '+' : '−'}${money(Math.abs(c?.net || 0))}</span></div>`,
-        actions: `<div class="rlpicks"><button class="rlp red" data-rl="red">Red</button><button class="rlp black" data-rl="black">Black</button><button class="rlp green" data-rl="0">0</button><button class="rlp green" data-rl="00">00</button></div>
+        actions: `<div class="rlpicks"><button class="rlp red" data-rl="red">Red</button><button class="rlp black" data-rl="black">Black</button><button class="rlp green rlmore" data-rlmore>More bets…</button></div>
           <div class="rlodds" id="rlOdds"></div>
           <button class="qbtn buy" data-spin>Spin</button>` });
       return;
@@ -1468,6 +1501,26 @@ function renderSheet(fresh = false){
   const sh = S.sheet, d = S.data;
   if (!sh || !d) return;
   const el = $('sheet');
+  if (sh.type === 'roulette') {
+    // The full betting table: tap a bet, then spin.
+    const cell = (pick, text, cls = '') => `<button class="rlcell ${cls}${S.rlPick === pick ? ' on' : ''}" data-rlpick="${pick}">${text}</button>`;
+    const nums = []; for (let r = 0; r < 12; r++) for (let c = 1; c <= 3; c++) { const n = r * 3 + c; nums.push(cell(`n:${n}`, n, RL_REDS.has(n) ? 'red' : 'black')); }
+    const info = rlInfo(S.rlPick), bet = rlBet();
+    const canBuy = d.room.status === 'running' && !(d.me.bills || []).length;
+    setHtml(el, `<button class="close" data-close>×</button>
+      <h3 class="display">Roulette table</h3>
+      <p class="lesson" style="margin-bottom:8px;">Pick a bet. The amount is your trade amount at the top (${money(bet)}).</p>
+      <div class="rlgroup"><div class="rlgl">Pays 1 to 1 · 18 in 38</div>
+        <div class="rlrow">${cell('red', 'Red', 'red')}${cell('black', 'Black', 'black')}${cell('odd', 'Odd')}${cell('even', 'Even')}${cell('low', '1–18')}${cell('high', '19–36')}</div></div>
+      <div class="rlgroup"><div class="rlgl">Pays 2 to 1 · 12 in 38</div>
+        <div class="rlrow">${cell('d1', '1st 12')}${cell('d2', '2nd 12')}${cell('d3', '3rd 12')}</div></div>
+      <div class="rlgroup"><div class="rlgl">One number pays 35 to 1 · 1 in 38</div>
+        <div class="rlrow">${cell('n:0', '0', 'green')}${cell('n:00', '00', 'green')}</div>
+        <div class="rlnums">${nums.join('')}</div></div>
+      <div class="rlsummary">Bet ${money(bet)} on <b>${esc(info.label)}</b> · win ${money(bet * info.pays)} · ${info.wins} in 38</div>
+      <div class="actions"><button class="btn" data-spin ${canBuy && bet >= 1 && !S.spinning ? '' : 'disabled'}>Spin</button></div>`);
+    return;
+  }
   if (sh.type === 'gate') {
     const st = gateStatus(d);
     if (!st || String(st.g.month) !== sh.id) { closeSheet(); return; }
@@ -1722,7 +1775,7 @@ function renderResults(){
   } else {
     $('rMine').classList.add('hidden');
   }
-  renderHistoryChart(d.history, rv.startYear);
+  if (d.compare?.players?.[0]?.series) renderPlayerPills(d, rv.startYear); else renderHistoryChart(d.history, rv.startYear);
   renderCompareChart(d.compare, rv.startYear, d.me?.id);
   $('rBoard').innerHTML = boardHtml(board);
   $('rAll').innerHTML = board.map((p, i) => `<details class="pf"${d.me?.id === p.id || i < 3 ? ' open' : ''}>
@@ -1806,6 +1859,20 @@ function lineChart(box, legendBox, months, lines, startYear, onIndex){
   svg.addEventListener('touchmove', move, { passive: true });
   svg.addEventListener('pointerleave', leave);
   svg.addEventListener('touchend', leave);
+}
+
+// Pills above the chart switch whose money it shows (you first, then by rank).
+function renderPlayerPills(d, startYear){
+  const c = d.compare, box = $('rPlayerPills');
+  if (!c?.players?.length || c.players.length < 2) { box.innerHTML = ''; return; }
+  const last = c.months.length - 1;
+  const meId = d.me?.id;
+  const order = [...c.players].sort((a, b) => (a.id === meId ? -1 : b.id === meId ? 1 : b.total[last] - a.total[last]));
+  S.chartPlayer ||= meId || order[0].id;
+  box.innerHTML = order.map((p) => `<button class="pill${p.id === S.chartPlayer ? ' on' : ''}" data-chartplayer="${esc(p.id)}">${p.id === meId ? 'You' : esc(p.name)}</button>`).join('');
+  const who = c.players.find((p) => p.id === S.chartPlayer) || order[0];
+  $('rChartTitle').textContent = who.id === meId ? 'Your money over time' : `${who.name}'s money over time`;
+  renderHistoryChart({ months: c.months, series: who.series }, startYear);
 }
 
 function renderHistoryChart(h, startYear){
@@ -1941,7 +2008,7 @@ $('payDebtBtn').addEventListener('click', async () => {
 
 document.addEventListener('click', async (e) => {
   if (e.target.closest('input')) return; // typing in a box isn't a tap on its card
-  const t = e.target.closest('[data-skipgate],[data-payall],[data-alertpay],[data-alertlater],[data-rl],[data-spin],[data-sq],[data-term],[data-bondmax],[data-bondclear],[data-bondbuy],[data-flip],[data-ready],[data-opengate],[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
+  const t = e.target.closest('[data-chartplayer],[data-rlmore],[data-rlpick],[data-skipgate],[data-payall],[data-alertpay],[data-alertlater],[data-rl],[data-spin],[data-sq],[data-term],[data-bondmax],[data-bondclear],[data-bondbuy],[data-flip],[data-ready],[data-opengate],[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
   if (!t) { if (e.target === $('overlay') && S.sheet?.type !== 'gate') closeSheet(); return; }
   if (t.dataset.go) { show(t.dataset.go); return; }
   if (t.dataset.term) { S.bondTerm = t.dataset.term; syncBondCard(S.data, S.data.room.status === 'running' && !(S.data.me.bills || []).length); return; }
@@ -1976,6 +2043,9 @@ document.addEventListener('click', async (e) => {
     } else { t.disabled = false; toast(S.lastError || 'Could not pay.', 'bad'); }
     return;
   }
+  if (t.dataset.chartplayer) { S.chartPlayer = t.dataset.chartplayer; renderPlayerPills(S.data, S.data.reveal.startYear); return; }
+  if ('rlmore' in t.dataset) { openSheet('roulette', 'table'); return; }
+  if (t.dataset.rlpick) { S.rlPick = t.dataset.rlpick; syncRoulette(S.data, S.data.room.status === 'running' && !(S.data.me.bills || []).length); renderSheet(); return; }
   if (t.dataset.rl) { S.rlPick = t.dataset.rl; syncRoulette(S.data, S.data.room.status === 'running' && !(S.data.me.bills || []).length); return; }
   if ('spin' in t.dataset) { spin(); return; }
   if (t.dataset.sq) {
