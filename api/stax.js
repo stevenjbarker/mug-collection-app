@@ -74,14 +74,15 @@ function publicRoom(room, now) {
 export const GET = handle(async (request) => {
   const q = new URL(request.url).searchParams;
   const code = cleanCode(q.get('code'));
-  const found = await store.getRoom(code);
-  if (!found) return json({ error: 'No game with that code.' }, 404);
+  const t0 = performance.now();
+  const { found, players } = await store.getRoomAndPlayers(code);
+  const dbMs = performance.now() - t0;
+  if (!found) return json({ error: 'No game with that code.' }, 404, { 'server-timing': `db;dur=${dbMs.toFixed(0)}` });
   const now = Date.now();
   const room = game.effectiveRoom(found.room, now);
   const isHost = sameHash(q.get('host'), room.hostHash);
   const playerId = q.get('player');
 
-  const players = await store.getPlayers(code);
   let me = null;
   if (playerId) {
     const rec = players.find((p) => p.id === playerId);
@@ -106,7 +107,7 @@ export const GET = handle(async (request) => {
   if (pub.status !== 'lobby') body.market = game.market(room, month);
   if (me) body.me = { id: me.id, name: me.name, v: me.v, ...game.summarize(room, me, month) };
   if (pub.status === 'done') body.reveal = game.reveal(room, month);
-  return json(body);
+  return json(body, 200, { 'server-timing': `db;dur=${dbMs.toFixed(0)}, total;dur=${(performance.now() - t0).toFixed(0)}` });
 });
 
 export const POST = handle(async (request) => {

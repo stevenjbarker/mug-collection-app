@@ -35,6 +35,23 @@ async function redis(...cmd) {
   return body.result;
 }
 
+// Several commands in one round trip (Upstash REST pipeline).
+async function pipeline(cmds) {
+  const res = await fetch(REST_URL.replace(/\/$/, '') + '/pipeline', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${REST_TOKEN}`, 'content-type': 'application/json' },
+    body: JSON.stringify(cmds),
+  });
+  const body = await res.json();
+  if (!res.ok || !Array.isArray(body)) throw new Error(`redis: ${body.error || res.status}`);
+  return body.map((r) => {
+    if (r.error) throw new Error(`redis: ${r.error}`);
+    return r.result;
+  });
+}
+
+const parsePlayers = (entries) => entries.map(([id, raw]) => ({ id, raw, player: JSON.parse(raw) }));
+
 // ---------- in-memory stand-in ----------
 const mem = globalThis.__staxMem || (globalThis.__staxMem = { rooms: new Map(), players: new Map() });
 
@@ -69,6 +86,19 @@ export async function saveRoom(code, oldRaw, room) {
 }
 
 // ---------- players ----------
+
+// Room and all its players in one round trip (what every live update needs).
+export async function getRoomAndPlayers(code) {
+  if (USE_MEMORY) {
+    const found = await getRoom(code);
+    return { found, players: found ? await getPlayers(code) : [] };
+  }
+  const [raw, flat] = await pipeline([['GET', roomKey(code)], ['HGETALL', playersKey(code)]]);
+  if (!raw) return { found: null, players: [] };
+  const entries = [];
+  for (let i = 0; i < (flat || []).length; i += 2) entries.push([flat[i], flat[i + 1]]);
+  return { found: { room: JSON.parse(raw), raw }, players: parsePlayers(entries) };
+}
 
 export async function getPlayers(code) {
   let entries;
