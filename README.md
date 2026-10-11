@@ -36,15 +36,35 @@ After this, every push to the `main` branch on GitHub redeploys automatically.
 Change `APP_PASSCODE` in Vercel and redeploy. Every device is signed out and
 needs the new passcode.
 
+## Stax (the investing game at `/stax`)
+
+A multiplayer classroom game: 20 real years of market history (somewhere
+between 1986 and 2025, revealed at the end), a $4,000 paycheck every 6 months,
+seven investments that unlock over time, surprise bills, and a live
+leaderboard. The pig button on the passcode screen opens it.
+
+- **Hosting** needs its own passcode, `STAX_HOST_PASSCODE` (not the mug
+  passcode). Players only need the 4-letter room code.
+- **Storage:** live games use Upstash Redis (Vercel → Storage → Upstash
+  Redis, connected to this project). It adds `KV_REST_API_URL` and
+  `KV_REST_API_TOKEN`. Rooms expire after two days.
+- **Data:** `scripts/stax/annual-returns.csv` (from Aswath Damodaran's
+  historical returns) and `scripts/stax/companies.js` (the real companies
+  behind the disguised stocks). To refresh, run
+  `node scripts/stax/build-data.js`, which writes `api/_lib/stax-data.js`.
+- The server is the only source of prices; players never receive prices from
+  the future.
+
 ## Run locally
 
 ```sh
 npm install
-APP_PASSCODE=test npm run dev   # http://localhost:3000
+APP_PASSCODE=test STAX_HOST_PASSCODE=test npm run dev   # http://localhost:3000
 ```
 
 Without `BLOB_READ_WRITE_TOKEN`, data is stored in `.data/` on your computer
-instead of Vercel Blob.
+instead of Vercel Blob, and Stax rooms are kept in memory. Locally, a host
+can also start a 3-seconds-per-year game through the API for quick testing.
 
 ## How it's built
 
@@ -55,5 +75,7 @@ instead of Vercel Blob.
 | `api/collection.js` | Loads and saves the mug list (`data/collection.json`). Refuses a save made from an out-of-date copy so two devices can't overwrite each other |
 | `api/photo.js` | Uploads, serves and deletes photos (`photos/…`) |
 | `api/setup.js` | First run only: loads the original 51 mugs |
-| `api/_lib/` | Shared code: sign-in, storage, seed data (not served publicly) |
+| `api/stax.js` | Stax game API: create/join rooms, trades, host controls, live state |
+| `stax/` | Stax game page and pig art |
+| `api/_lib/` | Shared code: sign-in, storage, seed data, Stax engine and price data (not served publicly) |
 | `scripts/dev-server.js` | Local stand-in for Vercel |

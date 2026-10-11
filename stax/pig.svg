@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 150" fill="none" stroke="#1e2421" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+  <!-- legs -->
+  <path d="M62 112v22h18v-16M128 116v18h18v-24" fill="#f3ecd6"/>
+  <!-- tail -->
+  <path d="M172 76c12-2 16-12 9-16s-12 6-3 10 14-2 14-8"/>
+  <!-- body -->
+  <path d="M46 70c4-26 30-42 66-42 38 0 64 20 64 50 0 28-26 42-62 42-30 0-54-10-64-26" fill="#f3ecd6"/>
+  <!-- ear -->
+  <path d="M70 40l-4-24 24 14" fill="#f3ecd6"/>
+  <!-- snout -->
+  <ellipse cx="40" cy="84" rx="14" ry="17" fill="#f3ecd6"/>
+  <circle cx="36" cy="79" r="2.5" fill="#1e2421" stroke="none"/>
+  <circle cx="36" cy="90" r="2.5" fill="#1e2421" stroke="none"/>
+  <!-- eye (comic, happy) -->
+  <path d="M64 66q6-7 12 0"/>
+  <!-- cheek -->
+  <circle cx="74" cy="86" r="6" fill="#f2b8a8" stroke="none"/>
+  <!-- coin slot -->
+  <path d="M102 34h26" stroke-width="8"/>
+</svg>

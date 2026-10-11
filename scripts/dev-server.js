@@ -38,6 +38,17 @@ const server = http.createServer(async (req, res) => {
       res.end(await fs.readFile(path.join(ROOT, 'index.html')));
       return;
     }
+    if (url.pathname === '/stax' || url.pathname === '/stax/') {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      res.end(await fs.readFile(path.join(ROOT, 'stax/index.html')));
+      return;
+    }
+    const asset = /^\/stax\/([a-z0-9-]+\.(svg|png|js|css))$/.exec(url.pathname);
+    if (asset) {
+      const types = { svg: 'image/svg+xml', png: 'image/png', js: 'text/javascript', css: 'text/css' };
+      const body = await fs.readFile(path.join(ROOT, 'stax', asset[1])).catch(() => null);
+      if (body) { res.writeHead(200, { 'content-type': types[asset[2]] }); res.end(body); return; }
+    }
     res.writeHead(404).end();
   } catch (err) {
     console.error(err);
