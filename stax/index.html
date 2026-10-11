@@ -98,6 +98,8 @@
   .ticker.good span,.ticker.bad span,.ticker.news span{color:var(--ink);font-weight:600;}
   .ticker button{background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:inherit;padding:0 2px;}
   .qa{display:flex;gap:6px;margin-top:10px;}
+  .row .mo{white-space:nowrap;}
+  .pricerow{gap:6px;}
   .stockcard .qa{flex-direction:column;gap:6px;}
   .sqrow{display:flex;border:1px solid #5b7fd1;border-radius:9px;overflow:hidden;}
   .sq{flex:1;background:transparent;border:none;border-right:1px solid #3d5687;color:var(--cream);font-weight:700;font-size:13px;padding:5px 0;cursor:pointer;}
@@ -378,6 +380,9 @@
     .qty{min-width:46px;}
     .inv .spark{height:18px;}
     .inv .row{line-height:1.22;}
+    .stockcard .row .mo{font-size:11px;}
+    .pricerow{font-size:11px !important;gap:4px;} .pricerow .sh{display:none;}
+    .pricerow .mo{letter-spacing:-.2px;}
     .ratecard .spark,.ratecard .payrow{display:none;}
     .lots{margin:3px 0 0;gap:4px;}
     .lotpie{width:auto;flex-direction:row;gap:4px;}
@@ -838,6 +843,14 @@ function moneyRows(h, extra = ''){
     <div class="row" style="margin-top:2px;"><span class="muted">Profit</span><span class="${cls}">${cost ? `${sign}${money(Math.abs(gain)).replace('−', '')} (${pct(gain / cost)})` : '$0'}</span></div>`;
 }
 const fmtShares = (n) => (Number.isInteger(n) ? n.toLocaleString('en-US') : n.toFixed(2));
+// Change since last month, per share: [dollars, fraction] (null if new).
+const monthMove = (h) => (h && h.length > 1 ? [h[h.length - 1] - h[h.length - 2], h[h.length - 1] / h[h.length - 2] - 1] : null);
+const moveHtml = (mv) => {
+  if (!mv) return '<span class="muted">new this month</span>';
+  const [dlr, f] = mv;
+  const cls = dlr > 0.004 ? 'up' : dlr < -0.004 ? 'down' : 'muted';
+  return `<span class="${cls}">${dlr >= 0 ? '+' : '−'}${money(Math.abs(dlr), true)} (${pct(f)})</span>`;
+};
 const yearChange = (h) => (h && h.length > 1 ? h[h.length - 1] / h[Math.max(0, h.length - 13)] - 1 : null);
 
 // ---------- clock ----------
@@ -1217,7 +1230,7 @@ function renderPlay(){
             ? `${head('🏷️', esc(st.name), 'About the company')}<div class="backtext">${esc(st.blurb)}</div>`
             : `${isNew ? '<span class="new">NEW</span>' : ''}${head('🏷️', esc(st.name), 'Stock')}
           <div class="spark">${spark(st.history)}</div>
-          <div class="row"><span>${money(st.price, true)}<span class="muted">/share</span></span><span class="${ch >= 0 ? 'up' : 'down'}">${ch == null ? '—' : pct(ch)} 1y</span></div>
+          <div class="row pricerow"><span>${money(st.price, true)}<span class="muted sh">/sh</span></span><span class="mo">${moveHtml(monthMove(st.history))} <span class="muted">mo</span></span></div>
           ${moneyRows(h, shares ? `<span class="muted" style="font-weight:600;">${fmtShares(shares)} sh · </span>` : '')}`,
           actions: (() => {
             // Each stock remembers its own share amount; Buy/Sell use it.
@@ -1358,6 +1371,7 @@ function renderSheet(fresh = false){
       <div class="muted" style="font-size:12px;" id="tMonths"></div>
       <div class="facts">
         <div><div class="label">${isStock ? 'Share price' : 'Value of $100'}</div><div class="value" id="tPrice"></div></div>
+        ${isStock ? '<div><div class="label">This month</div><div class="value" id="tMonth"></div></div>' : ''}
         <div><div class="label">Past year</div><div class="value" id="tChange"></div></div>
         <div><div class="label">${sh.id === 'savings' ? 'Balance' : 'You own'}</div><div class="value" id="tOwn"></div></div>
       </div>
@@ -1380,6 +1394,7 @@ function renderSheet(fresh = false){
   $('tMonths').textContent = `Last ${item.history.length - 1} months`;
   $('tPrice').textContent = money(item.price, true);
   $('tChange').textContent = ch == null ? '—' : pct(ch);
+  if ($('tMonth')) setHtml($('tMonth'), moveHtml(monthMove(item.history)));
   $('tChange').className = 'value ' + (ch >= 0 ? 'up' : 'down');
   $('tOwn').textContent = h ? (isStock ? `${fmtShares(h.shares)} sh` : money(h.value)) : isStock ? '0 sh' : '$0';
   $('tCash').textContent = money(d.me.cash);
