@@ -174,6 +174,35 @@ export function gameMonth(room, now) {
   return Math.max(0, Math.min(GAME_MONTHS, m));
 }
 
+// Months where something new unlocks. The game pauses there for everyone
+// until all players have read about it and pressed Ready.
+export const GATES = [...new Set(INVESTMENTS.map((i) => i.unlock))].sort((a, b) => a - b);
+
+// The room as it really is right now: if the clock has run past an unlock
+// that hasn't been cleared yet, the game is paused at that exact month.
+export function effectiveRoom(room, now) {
+  // Games started before unlock pauses existed have no gatesDone; leave them be.
+  if (room.status !== 'running' || !room.gatesDone) return room;
+  const done = room.gatesDone;
+  const m = gameMonth(room, now);
+  const gate = GATES.find((g) => g <= m && g < GAME_MONTHS && !done.includes(g));
+  if (gate == null) return room;
+  return {
+    ...room, status: 'paused',
+    pausedAt: room.startedAt + (room.pausedMs || 0) + gate * room.monthMs,
+    gate: { month: gate, ready: [] },
+  };
+}
+
+// Clears an unlock pause and starts the clock again.
+export function clearGate(room, now) {
+  return {
+    ...room, status: 'running',
+    pausedMs: (room.pausedMs || 0) + (now - room.pausedAt), pausedAt: null,
+    gatesDone: [...(room.gatesDone || []), room.gate.month], gate: null,
+  };
+}
+
 export function isOver(room, now) {
   return room.status === 'done' || (room.status === 'running' && gameMonth(room, now) >= GAME_MONTHS);
 }
@@ -530,7 +559,8 @@ export function reveal(room, month = GAME_MONTHS) {
   const years = Math.ceil(end / 12);
   const strategy = (asset) => {
     let units = 0;
-    for (let m = 0; m < end; m += PAY_EVERY) units += PAYCHECK / price(room, asset, m);
+    // Same paychecks a player received: one at the start of every 6 months up to `end`.
+    for (let m = 0; m <= end && m < GAME_MONTHS; m += PAY_EVERY) units += PAYCHECK / price(room, asset, m);
     return round2(units * price(room, asset, end));
   };
   let inflation = 1;
@@ -551,7 +581,7 @@ export function reveal(room, month = GAME_MONTHS) {
     startYear: room.startYear,
     endYear: room.startYear + years - 1,
     endedEarly: end < GAME_MONTHS,
-    contributed: Math.min(GAME_MONTHS / PAY_EVERY, Math.floor((end - 1) / PAY_EVERY) + 1) * PAYCHECK,
+    contributed: paychecks(end) * PAYCHECK,
     benchmarks: {
       savings: strategy('savings'),
       index: strategy('index'),

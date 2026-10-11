@@ -85,6 +85,10 @@
   .qtybar .qlabel{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-right:2px;}
   .qty{flex:1;max-width:90px;background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:6px 0;font-size:14px;font-weight:700;cursor:pointer;}
   .qty.on{background:var(--gold);color:var(--ink);border-color:var(--ink);}
+  .qty-custom{flex:1.4;min-width:0;max-width:110px;background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:6px 8px;font-size:14px;font-weight:700;outline:none;}
+  .qty-custom:focus{border-color:var(--gold);}
+  .qty-custom.on{background:var(--gold);color:var(--ink);border-color:var(--ink);}
+  .qty-custom.on::placeholder{color:var(--ink);}
   .ticker{max-width:1100px;margin:8px auto 0;display:flex;align-items:center;gap:8px;min-height:34px;padding:6px 10px;border-radius:10px;
     background:var(--bg2);border:1px solid var(--line);font-size:14px;line-height:1.3;}
   .ticker span{flex:1;min-width:0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
@@ -120,6 +124,7 @@
   .stock .cbody{flex:1;min-width:0;display:flex;gap:12px;align-items:center;}
   .stock .qa{margin-top:0;flex-direction:column;gap:5px;flex:none;width:62px;}
   .stock .qbtn{padding:5px 0;font-size:13px;}
+  .paused-banner .btn{margin-left:6px;padding:4px 10px;font-size:13px;box-shadow:0 2px 0 var(--ink);}
   .paused-banner{max-width:1100px;margin:8px auto 0;background:var(--gold);color:var(--ink);border-radius:10px;padding:6px 12px;font-weight:700;text-align:center;}
 
   /* ---------- play ---------- */
@@ -223,6 +228,13 @@
   .bench .bv{width:100px;text-align:right;font-weight:700;}
   table.reveal{width:100%;border-collapse:collapse;font-size:14px;}
   table.reveal td{padding:7px 4px;border-bottom:1px solid var(--line);}
+  .pf{border-bottom:1px solid var(--line);padding:8px 0;}
+  .pf summary{cursor:pointer;display:flex;gap:8px;align-items:center;list-style:none;}
+  .pf summary::-webkit-details-marker{display:none;}
+  .pf summary::after{content:'▾';color:var(--muted);margin-left:6px;}
+  .pf[open] summary::after{content:'▴';}
+  .pf .pfnw{margin-left:auto;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums;}
+  .pf table.reveal{margin-top:6px !important;}
   table.reveal td:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;}
   /* ---------- phones (keep last so it wins) ---------- */
   @media (max-width:600px){
@@ -263,6 +275,9 @@
     .stock svg{width:48px;}
     .stock .blurb{font-size:12px;}
     .qty{font-size:13px;}
+    .qtybar .qlabel{display:none;}
+    .qtybar{gap:5px;}
+    .qty-custom{font-size:13px;padding:6px 6px;}
   }
 </style>
 </head>
@@ -346,6 +361,7 @@
       <button class="qty" data-qty="1000">$1K</button>
       <button class="qty" data-qty="5000">$5K</button>
       <button class="qty" data-qty="all">All</button>
+      <input class="qty-custom" id="qtyCustom" inputmode="decimal" enterkeyhint="done" placeholder="$ other" aria-label="Custom trade amount">
     </div>
     <div id="billsBar" class="billsbar"></div>
     <div class="ticker" id="ticker"><span id="tickerText" class="muted">Good luck!</span><button id="tickerClose" aria-label="Dismiss" class="hidden">×</button></div>
@@ -407,6 +423,7 @@
         <div class="bar"><div id="hBar"></div></div>
       </div>
       <div class="muted">Code <b class="display" style="color:var(--gold);font-size:28px;letter-spacing:3px;" id="hCode2"></b></div>
+      <div class="paused-banner hidden" id="hGate" style="flex:1 1 100%;margin:0;"></div>
       <div class="host-controls">
         <button class="btn" id="pauseBtn">Pause</button>
         <button class="btn ghost" id="endBtn">End game</button>
@@ -426,6 +443,10 @@
   <div class="years" id="rYears"></div>
   <div class="card" id="rMine"></div>
   <div class="card"><h2>Final leaderboard</h2><ol class="lb" id="rBoard"></ol></div>
+  <div class="card" style="text-align:left;" id="rAllCard">
+    <h2>Everyone's portfolios</h2>
+    <div id="rAll"></div>
+  </div>
   <div class="card" style="text-align:left;">
     <h2>What if you'd put every paycheck into one thing?</h2>
     <div id="rBench"></div>
@@ -663,7 +684,7 @@ async function poll(){
 function forget(){
   if (S.code) { store.del('stax:p:' + S.code); store.del('stax:h:' + S.code); }
   store.del('stax:last');
-  S = { ...S, role: null, code: null, player: null, token: null, hostKey: null, data: null, meV: -1, seenNews: null, lastPayIdx: null, seenUnlock: null, seenLog: null };
+  S = { ...S, role: null, code: null, player: null, token: null, hostKey: null, data: null, meV: -1, seenNews: null, lastPayIdx: null, seenUnlock: null, seenLog: null, gateShown: null };
 }
 
 // ---------- render ----------
@@ -740,14 +761,41 @@ function announce(d){
   if (S.lastPayIdx !== null && payIdx > S.lastPayIdx && d.room.status === 'running') toast(`💵 Payday! +${money(d.room.paycheck)}`, 'good', 2500);
   S.lastPayIdx = payIdx;
 
-  if (S.seenUnlock === null) S.seenUnlock = new Set(store.get('stax:u:' + S.code) || []);
-  for (const id of ORDER.filter((x) => m >= INV[x].unlock)) {
-    const key = INV[id].lessonKey || id;
-    if (S.seenUnlock.has(key)) continue;
-    S.seenUnlock.add(key);
-    store.set('stax:u:' + S.code, [...S.seenUnlock]);
-    if (!S.sheet) openLesson(id);
+  renderGate(d);
+}
+
+// ---------- unlock pauses ----------
+// When something new unlocks, the game pauses until every player has read
+// about it and pressed Ready.
+const gateItems = (month) => ORDER.filter((id) => INV[id].unlock === month);
+const gateTitle = (month) => {
+  const ids = gateItems(month);
+  return ids.some((id) => INV[id].lessonKey === 'bonds') ? 'Government Bonds' : ids.map((id) => INV[id].name).join(' & ');
+};
+function gateStatus(d){
+  const g = d.room.gate;
+  if (!g) return null;
+  const players = d.leaderboard;
+  const ready = players.filter((p) => g.ready.includes(p.id));
+  const waiting = players.filter((p) => !g.ready.includes(p.id));
+  return { g, ready, waiting, total: players.length, meReady: !!d.me && g.ready.includes(d.me.id) };
+}
+function renderGate(d){
+  const st = gateStatus(d);
+  if (!st) { if (S.sheet?.type === 'gate') closeSheet(); S.gateShown = null; return; }
+  // Pop the lesson open once per unlock; it can be reopened from the banner.
+  if (d.me && !st.meReady && S.gateShown !== st.g.month) {
+    S.gateShown = st.g.month;
+    openSheet('gate', String(st.g.month));
   }
+  if (S.sheet?.type === 'gate') renderSheet();
+}
+function gateBanner(d){
+  const st = gateStatus(d);
+  if (!st) return '';
+  const who = st.waiting.length ? ` Waiting on ${st.waiting.slice(0, 4).map((p) => esc(p.name)).join(', ')}${st.waiting.length > 4 ? ` +${st.waiting.length - 4}` : ''}.` : '';
+  return `⏸ New: ${esc(gateTitle(st.g.month))}. ${st.ready.length} of ${st.total} ready.${who}` +
+    (d.me && !st.meReady ? ` <button class="btn small" data-opengate>Read it</button>` : '');
 }
 
 function renderPlay(){
@@ -771,15 +819,16 @@ function renderPlay(){
   $('pDebtWrap').classList.toggle('hidden', !(me.debt > 0));
   $('pDebt').textContent = money(me.debt);
   $('pPaused').classList.toggle('hidden', d.room.status !== 'paused');
+  setHtml($('pPaused'), d.room.gate ? gateBanner(d) : 'Paused by the host');
   $('hostBar').classList.toggle('hidden', !S.hostKey);
   if (S.hostKey) {
     $('hbCode').textContent = S.code;
     $('hbCount').textContent = `${d.leaderboard.length} player${d.leaderboard.length === 1 ? '' : 's'}`;
-    $('hbPause').textContent = d.room.status === 'paused' ? 'Resume' : 'Pause';
+    $('hbPause').textContent = d.room.gate ? 'Resume anyway' : d.room.status === 'paused' ? 'Resume' : 'Pause';
   }
 
   const running = d.room.status === 'running';
-  document.querySelectorAll('.qty').forEach((b) => b.classList.toggle('on', b.dataset.qty === String(S.qty)));
+  syncQty();
   if ($('tickerClose').classList.contains('hidden')) resetTicker();
   // Bills waiting to be paid.
   patchList($('billsBar'), (me.bills || []).map((b) => ({
@@ -865,6 +914,29 @@ function renderSheet(fresh = false){
   const sh = S.sheet, d = S.data;
   if (!sh || !d) return;
   const el = $('sheet');
+  if (sh.type === 'gate') {
+    const st = gateStatus(d);
+    if (!st || String(st.g.month) !== sh.id) { closeSheet(); return; }
+    const ids = gateItems(st.g.month);
+    if (fresh) {
+      const bonds = ids.some((id) => INV[id].lessonKey === 'bonds');
+      const shown = bonds ? [ids[0]] : ids;
+      el.innerHTML = `<div class="big-emoji">${shown.map((id) => INV[id].icon).join(' ')}</div>
+        <p class="muted" style="margin:10px 0 2px;text-transform:uppercase;letter-spacing:1px;font-size:12px;">${st.g.month === 0 ? 'Before we start' : 'Game paused · something new'}</p>
+        <h3 class="display">${esc(gateTitle(st.g.month))}</h3>
+        ${shown.map((id) => `<p class="lesson">${INV[id].lesson}</p>`).join('')}
+        ${bonds ? '<p class="lesson">You can choose a 1-month, 3-month or 1-year bond.</p>' : ''}
+        <div id="gateStatus" class="muted" style="font-size:14px;margin:6px 0 12px;"></div>
+        <div class="actions"><button class="btn" data-ready>I'm ready</button></div>`;
+    }
+    $('gateStatus').innerHTML = st.meReady
+      ? `✅ You're ready. ${st.waiting.length ? `Waiting on ${st.waiting.map((p) => esc(p.name)).join(', ')}…` : 'Starting…'}`
+      : `${st.ready.length} of ${st.total} players ready.`;
+    const btn = el.querySelector('[data-ready]');
+    btn.disabled = st.meReady || S.busy;
+    btn.textContent = st.meReady ? 'Waiting for everyone…' : "I'm ready";
+    return;
+  }
   if (sh.type === 'lesson') {
     if (!fresh) return;
     const inv = INV[sh.id];
@@ -995,6 +1067,20 @@ async function doTrade(asset, side, amount, lot, shares){
   return true;
 }
 
+// The trade amount used by the dashboard Buy/Sell buttons: a preset or any
+// number typed into the box.
+function setQty(v){
+  S.qty = String(v);
+  try { localStorage.setItem('stax:qty', S.qty); } catch {}
+  syncQty();
+}
+function syncQty(){
+  const preset = [...document.querySelectorAll('.qty')].some((b) => b.dataset.qty === S.qty);
+  document.querySelectorAll('.qty').forEach((b) => b.classList.toggle('on', b.dataset.qty === S.qty));
+  $('qtyCustom').classList.toggle('on', !preset);
+  if (!preset && document.activeElement !== $('qtyCustom')) $('qtyCustom').value = money(Number(S.qty));
+}
+
 // One-tap Buy/Sell from the dashboard, using the trade amount picked in the top bar.
 async function quickTrade(asset, side){
   const me = S.data?.me;
@@ -1035,7 +1121,9 @@ function renderHost(){
   } else {
     renderClock('h');
     $('hCode2').textContent = S.code;
-    $('pauseBtn').textContent = status === 'paused' ? 'Resume' : 'Pause';
+    $('pauseBtn').textContent = d.room.gate ? 'Resume anyway' : status === 'paused' ? 'Resume' : 'Pause';
+    $('hGate').classList.toggle('hidden', !d.room.gate);
+    setHtml($('hGate'), d.room.gate ? gateBanner(d) + '<div class="muted" style="font-size:13px;margin-top:4px;">The game resumes by itself when everyone is ready.</div>' : '');
     setHtml($('hBoard'), boardHtml(d.leaderboard, { kick: true }));
     setHtml($('hNews'), newsHtml(d.news));
   }
@@ -1067,6 +1155,11 @@ function renderResults(){
     $('rMine').classList.add('hidden');
   }
   $('rBoard').innerHTML = boardHtml(board);
+  $('rAll').innerHTML = board.map((p, i) => `<details class="pf"${d.me?.id === p.id || i < 3 ? ' open' : ''}>
+      <summary><span class="rank">${['🥇','🥈','🥉'][i] || '#' + (i + 1)}</span> <b>${esc(p.name)}</b><span class="pfnw">${money(p.netWorth)}</span></summary>
+      ${p.holdings ? holdingsHtml(p, rv) || '<p class="muted" style="margin:6px 0;">Nothing left.</p>' : ''}
+    </details>`).join('');
+  $('rAllCard').classList.toggle('hidden', !board.length);
   const b = rv.benchmarks;
   const rows = [['Savings account', b.savings], ['Real estate', b.realestate], ['Gold', b.gold], ['Index fund', b.index]].filter((r) => r[1] != null);
   const max = Math.max(...rows.map((r) => r[1]), d.me?.netWorth || 0);
@@ -1075,7 +1168,7 @@ function renderResults(){
     (d.me ? `<div class="bench"><div class="bl"><b>You</b></div><div class="bt"><div style="width:${Math.max(0, d.me.netWorth / max * 100).toFixed(1)}%;background:var(--up);"></div></div><div class="bv">${money(d.me.netWorth)}</div></div>` : '');
   $('rTimeline').innerHTML = (rv.timeline || []).map((t) => `<li><div class="when">${esc(t.date)}</div><div>${esc(t.text)}</div></li>`).join('');
   $('rTimelineCard').classList.toggle('hidden', !(rv.timeline || []).length);
-  $('rInflation').textContent = `Prices also rose over those ${rv.endYear - rv.startYear + 1} years: something that cost $100 in ${rv.startYear} cost about ${money(100 * rv.inflation)} by ${rv.endYear}. That's why money sitting in your pocket slowly loses value.`;
+  $('rInflation').textContent = `Prices also rose over ${rv.endYear === rv.startYear ? 'that year' : `those ${rv.endYear - rv.startYear + 1} years`}: something that cost $100 in ${rv.startYear} cost about ${money(100 * rv.inflation)} by ${rv.endYear}. That's why money sitting in your pocket slowly loses value.`;
   const stocks = [...rv.stocks].sort((a, b) => b.change - a.change);
   $('rStocksCard').classList.toggle('hidden', !stocks.length);
   $('rStocks').innerHTML = stocks.map((s) => `<tr><td>${esc(s.name)}</td><td>was <b>${esc(s.real)}</b></td><td class="${s.change >= 0 ? 'up' : 'down'}">${pct(s.change)}</td></tr>`).join('');
@@ -1091,6 +1184,8 @@ function holdingsHtml(me, rv){
     rows.push([label, h.value, h.cost]);
   }
   if (me.debt > 0) rows.push(['💳 Credit card debt', -me.debt, null]);
+  const owed = (me.bills || []).reduce((t, b) => t + b.amount, 0);
+  if (owed > 0) rows.push(['🔥 Unpaid bills', -owed, null]);
   if (!rows.length) return '';
   rows.sort((a, b) => b[1] - a[1]);
   return `<table class="reveal" style="margin-top:14px;text-align:left;">${rows.map(([label, v, cost]) =>
@@ -1167,6 +1262,13 @@ $('playToo').addEventListener('submit', async (e) => {
   await poll();
 });
 $('tickerClose').addEventListener('click', resetTicker);
+$('qtyCustom').addEventListener('input', (e) => {
+  const n = Number(e.target.value.replace(/[$,\s]/g, ''));
+  if (n > 0) setQty(Math.round(n * 100) / 100);
+});
+$('qtyCustom').addEventListener('focus', (e) => { e.target.value = e.target.classList.contains('on') ? S.qty : ''; });
+$('qtyCustom').addEventListener('blur', syncQty);
+$('qtyCustom').addEventListener('keydown', (e) => { if (e.key === 'Enter') e.target.blur(); });
 $('hbPause').addEventListener('click', () => hostOp(S.data?.room.status === 'paused' ? 'resume' : 'pause'));
 $('hbEnd').addEventListener('click', () => { if (confirm('End the game now for everyone?')) hostOp('end'); });
 $('startBtn').addEventListener('click', () => hostOp('start', { yearSeconds: Number($('speed').value) }));
@@ -1178,13 +1280,20 @@ $('payDebtBtn').addEventListener('click', async () => {
 });
 
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
-  if (!t) { if (e.target === $('overlay')) closeSheet(); return; }
+  const t = e.target.closest('[data-ready],[data-opengate],[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
+  if (!t) { if (e.target === $('overlay') && S.sheet?.type !== 'gate') closeSheet(); return; }
   if (t.dataset.go) { show(t.dataset.go); return; }
+  if ('opengate' in t.dataset) { openSheet('gate', String(S.data.room.gate.month)); return; }
+  if ('ready' in t.dataset) {
+    t.disabled = true;
+    const r = await api('POST', { action: 'ready', code: S.code, player: S.player, token: S.token }).catch(() => ({ ok: false, data: {} }));
+    if (!r.ok) { t.disabled = false; toast(r.data.error || 'Could not reach the game. Try again.', 'bad'); return; }
+    await poll();
+    return;
+  }
   if (t.dataset.qty) {
-    S.qty = t.dataset.qty;
-    try { localStorage.setItem('stax:qty', S.qty); } catch {}
-    document.querySelectorAll('.qty').forEach((b) => b.classList.toggle('on', b.dataset.qty === S.qty));
+    setQty(t.dataset.qty);
+    $('qtyCustom').value = '';
     return;
   }
   if (t.dataset.quick) { quickTrade(t.dataset.asset, t.dataset.quick); return; }

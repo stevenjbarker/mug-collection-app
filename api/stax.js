@@ -67,6 +67,7 @@ function publicRoom(room, now) {
     code: room.code, status, month, monthMs: room.monthMs, yearSeconds: room.yearSeconds,
     startedAt: room.startedAt, pausedAt: room.pausedAt, pausedMs: room.pausedMs || 0,
     endedAt: room.endedAt || null, gameMonths: game.GAME_MONTHS, paycheck: game.PAYCHECK,
+    gate: room.gate ? { month: room.gate.month, ready: room.gate.ready } : null,
   };
 }
 
@@ -75,8 +76,8 @@ export const GET = handle(async (request) => {
   const code = cleanCode(q.get('code'));
   const found = await store.getRoom(code);
   if (!found) return json({ error: 'No game with that code.' }, 404);
-  const { room } = found;
   const now = Date.now();
+  const room = game.effectiveRoom(found.room, now);
   const isHost = sameHash(q.get('host'), room.hostHash);
   const playerId = q.get('player');
 
@@ -92,9 +93,13 @@ export const GET = handle(async (request) => {
 
   const pub = publicRoom(room, now);
   const month = Math.floor(pub.month);
+  const over = pub.status === 'done';
   const board = players.map(({ id, player }) => {
     const s = game.summarize(room, player, month);
-    return { id, name: player.name, netWorth: s.netWorth, debt: s.debt, trades: player.trades };
+    const row = { id, name: player.name, netWorth: s.netWorth, debt: s.debt, trades: player.trades };
+    // Everyone's portfolio is shown only once the game is over.
+    if (over) Object.assign(row, { cash: s.cash, holdings: s.holdings, bills: s.bills, contributed: s.contributed });
+    return row;
   }).sort((a, b) => b.netWorth - a.netWorth);
 
   const body = { now, room: pub, leaderboard: board, news: game.news(room, month) };
@@ -130,7 +135,31 @@ export const POST = handle(async (request) => {
   const code = cleanCode(body.code);
   const found = await store.getRoom(code);
   if (!found) return json({ error: 'No game with that code.' }, 404);
-  const { room, raw: roomRaw } = found;
+  const { raw: roomRaw } = found;
+  const room = game.effectiveRoom(found.room, now);
+
+  if (body.action === 'ready') {
+    // A player has read about the new investment. When everyone has, go.
+    const rec = await store.getPlayer(code, String(body.player || ''));
+    if (!rec || !sameHash(body.token, rec.player.tokenHash)) return json({ error: 'not in game' }, 403);
+    let cur = { room, raw: roomRaw };
+    for (let attempt = 0; attempt < 6; attempt++) {
+      if (!cur.room.gate) return json({ ok: true });
+      const ready = [...new Set([...cur.room.gate.ready, rec.player.id])];
+      const players = await store.getPlayers(code);
+      const everyone = players.every((p) => ready.includes(p.id));
+      const next = everyone ? game.clearGate(cur.room, Date.now()) : { ...cur.room, gate: { ...cur.room.gate, ready } };
+      try {
+        await store.saveRoom(code, cur.raw, next);
+        return json({ ok: true, started: everyone });
+      } catch (err) {
+        if (!(err instanceof store.ConflictError)) throw err;
+        const again = await store.getRoom(code);
+        cur = { room: game.effectiveRoom(again.room, Date.now()), raw: again.raw };
+      }
+    }
+    throw new store.ConflictError();
+  }
 
   if (body.action === 'join') {
     if (game.isOver(room, now)) return json({ error: 'That game is already over.' }, 400);
@@ -179,6 +208,7 @@ export const POST = handle(async (request) => {
         next.status = 'running';
         next.startedAt = now;
         next.pausedMs = 0;
+        next.gatesDone = [];
         break;
       case 'pause':
         if (status !== 'running') return json({ error: 'Not running.' }, 400);
@@ -187,6 +217,7 @@ export const POST = handle(async (request) => {
         break;
       case 'resume':
         if (status !== 'paused') return json({ error: 'Not paused.' }, 400);
+        if (room.gate) { Object.assign(next, game.clearGate(room, now)); break; }
         next.status = 'running';
         next.pausedMs = (room.pausedMs || 0) + (now - room.pausedAt);
         next.pausedAt = null;
