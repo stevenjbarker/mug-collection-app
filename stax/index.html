@@ -264,6 +264,20 @@
   .big-emoji{font-size:44px;line-height:1;}
 
   /* ---------- toasts ---------- */
+  .alertscreen{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;padding:20px;
+    background:radial-gradient(circle at 50% 30%, #8f2a2e, #4a1416 70%);animation:alertin .25s ease;}
+  @keyframes alertin{from{opacity:0;transform:scale(1.04);}to{opacity:1;transform:none;}}
+  .al-box{max-width:520px;width:100%;text-align:center;color:#fff3ee;}
+  .al-emoji{font-size:72px;line-height:1;animation:shake .5s ease 2;}
+  @keyframes shake{0%,100%{transform:rotate(0);}25%{transform:rotate(-8deg);}75%{transform:rotate(8deg);}}
+  .al-kicker{margin-top:10px;text-transform:uppercase;letter-spacing:3px;font-weight:800;font-size:14px;color:#ffb3a6;}
+  .al-box h2{font-size:34px;margin:6px 0 4px;line-height:1.15;}
+  .al-amount{font-size:56px;font-weight:900;font-variant-numeric:tabular-nums;color:#fff;text-shadow:0 3px 0 rgba(0,0,0,.35);margin:6px 0 10px;}
+  .al-box p{font-size:17px;line-height:1.45;margin:8px auto;max-width:440px;}
+  .al-short{background:rgba(0,0,0,.25);border-radius:12px;padding:10px 14px;font-size:15px !important;}
+  .al-actions{display:flex;flex-direction:column;gap:10px;margin-top:18px;align-items:center;}
+  .al-pay{font-size:19px;padding:14px 28px;min-width:260px;}
+  .al-later{color:#ffe1da;border-color:rgba(255,255,255,.35);min-width:260px;}
   .conn{position:fixed;top:calc(6px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:70;background:var(--down);color:var(--ink);font-weight:800;font-size:13px;padding:5px 12px;border-radius:20px;border:2px solid var(--ink);pointer-events:none;}
   .toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:60;display:flex;flex-direction:column;gap:8px;width:min(520px,calc(100% - 32px));pointer-events:none;}
   .toast{background:var(--cream);color:var(--ink);border:2px solid var(--ink);box-shadow:0 4px 0 var(--ink);border-radius:14px;padding:11px 14px;font-weight:600;animation:pop .25s ease;pointer-events:auto;display:flex;gap:10px;align-items:flex-start;}
@@ -619,6 +633,7 @@
 
 <!-- ============ SHEET + TOASTS ============ -->
 <div class="overlay hidden" id="overlay"><div class="sheet" id="sheet"></div></div>
+<div class="alertscreen hidden" id="alertScreen" role="alertdialog" aria-modal="true"></div>
 <div class="conn hidden" id="conn">📶 Reconnecting…</div>
 <div class="toasts" id="toasts"></div>
 
@@ -916,6 +931,7 @@ function forget(){
   if (S.code) { store.del('stax:p:' + S.code); store.del('stax:h:' + S.code); }
   store.del('stax:last');
   S = { ...S, role: null, code: null, player: null, token: null, hostKey: null, data: null, meV: -1, seenNews: null, lastPayIdx: null, seenUnlock: null, seenLog: null, gateShown: null };
+  alertQueue.length = 0; alertShown = null; $('alertScreen').classList.add('hidden');
 }
 
 // ---------- render ----------
@@ -923,7 +939,7 @@ function render(){
   const d = S.data;
   if (!d) return;
   const status = d.room.status;
-  if (status === 'done') { stopPolling(); closeSheet(); renderResults(); show('results'); return; }
+  if (status === 'done') { stopPolling(); closeSheet(); alertQueue.length = 0; alertShown = null; $('alertScreen').classList.add('hidden'); renderResults(); show('results'); return; }
   // A host who also plays sees the host lobby before the start, then the player screen.
   if (S.role === 'host' && (!S.player || status === 'lobby')) { renderHost(); return; }
   if (status === 'lobby') { renderLobby(); if ($('lobby').classList.contains('hidden')) show('lobby'); return; }
@@ -975,7 +991,10 @@ function announce(d){
     if (S.seenNews.has(k)) continue;
     S.seenNews.add(k);
     if (first || !d.me) continue;
-    if (n.kind === 'expense') toast(`😬 ${n.text} A ${money(-n.amount)} bill is due. Pay it within 3 months or it starts charging credit card interest. No buying until it's paid.`, 'bad', 8000);
+    if (n.kind === 'expense') {
+      const bill = [...(d.me.bills || [])].reverse().find((b) => b.title === n.text && !b.overdue);
+      queueAlert({ kind: 'bill', billId: bill?.id, title: n.text, amount: -n.amount });
+    }
     else if (n.kind === 'windfall') toast(`🎉 ${n.text} +${money(n.amount)}`, 'good');
     else if (n.kind === 'listing') toast(`🔔 New stock: ${n.text.replace('New on the market: ', '').split('.')[0]}`, 'news');
     else toast('📰 ' + n.text, 'news', 7000);
@@ -985,7 +1004,8 @@ function announce(d){
   for (const l of d.me.log || []) {
     if (S.seenLog.has(l.id)) continue;
     S.seenLog.add(l.id);
-    toast((l.kind === 'bad' ? '🔥 ' : '🔓 ') + l.text, l.kind, 8000);
+    if (l.id.startsWith('o:')) queueAlert({ kind: 'overdue', billId: l.id.slice(2), text: l.text });
+    else toast((l.kind === 'bad' ? '🔥 ' : '🔓 ') + l.text, l.kind, 8000);
   }
   const m = Math.floor(d.room.month);
   const payIdx = Math.min(39, Math.floor(m / 6));
@@ -1054,6 +1074,42 @@ async function buyBond(){
     $('bondAmt').value = '';
     renderPlay();
   } else toast(S.lastError || 'Could not buy.', 'bad');
+}
+
+// ---------- full-screen alerts for bad news ----------
+// A surprise bill (or a bill starting to charge interest) takes over the
+// whole screen until the player pays it or chooses "Pay later".
+const alertQueue = [];
+let alertShown = null;
+function queueAlert(a){
+  alertQueue.push(a);
+  if (!alertShown) nextAlert();
+}
+function nextAlert(){
+  alertShown = alertQueue.shift() || null;
+  $('alertScreen').classList.toggle('hidden', !alertShown);
+  if (alertShown) renderAlert();
+}
+function renderAlert(){
+  const a = alertShown;
+  if (!a) return;
+  const me = S.data?.me;
+  const bill = (me?.bills || []).find((b) => String(b.id) === String(a.billId));
+  if (!bill) { nextAlert(); return; } // already paid
+  const canPay = S.data.room.status === 'running' && me.cash >= bill.amount;
+  const head = a.kind === 'overdue' || bill.overdue
+    ? `<div class="al-emoji">🔥</div><div class="al-kicker">Bill overdue</div><h2 class="display">${esc(bill.title)}</h2>
+       <div class="al-amount">${money(bill.amount)}</div>
+       <p>You haven't paid this yet, so it's now charging <b>${bill.apr}%</b> interest (the average credit card rate) every month until you do.</p>`
+    : `<div class="al-emoji">😬</div><div class="al-kicker">Surprise bill</div><h2 class="display">${esc(bill.title)}</h2>
+       <div class="al-amount">${money(bill.amount)}</div>
+       <p>Pay it within <b>3 months</b> or it starts charging credit card interest. You can't buy anything until it's paid.</p>`;
+  setHtml($('alertScreen'), `<div class="al-box">${head}
+    ${canPay ? '' : `<p class="al-short">${S.data.room.status !== 'running' ? 'The game is paused.' : `You only have ${money(me.cash)} in pocket cash. Withdraw savings or sell something, then pay from the bill bar at the top.`}</p>`}
+    <div class="al-actions">
+      <button class="btn al-pay" data-alertpay="${bill.id}" ${canPay ? '' : 'disabled'}>Pay ${money(bill.amount)} now</button>
+      <button class="btn ghost al-later" data-alertlater>${canPay ? 'Pay later' : 'OK, I\'ll find the cash'}</button>
+    </div></div>`);
 }
 
 // ---------- unlock pauses ----------
@@ -1238,6 +1294,7 @@ function renderPlay(){
   setHtml($('pNews'), newsHtml(d.news));
   announce(d);
   if (S.sheet) renderSheet();
+  if (alertShown) renderAlert();
 }
 
 // ---------- sheets ----------
@@ -1619,7 +1676,7 @@ $('payDebtBtn').addEventListener('click', async () => {
 
 document.addEventListener('click', async (e) => {
   if (e.target.closest('input')) return; // typing in a box isn't a tap on its card
-  const t = e.target.closest('[data-rl],[data-spin],[data-sq],[data-term],[data-bondmax],[data-bondclear],[data-bondbuy],[data-flip],[data-ready],[data-opengate],[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
+  const t = e.target.closest('[data-alertpay],[data-alertlater],[data-rl],[data-spin],[data-sq],[data-term],[data-bondmax],[data-bondclear],[data-bondbuy],[data-flip],[data-ready],[data-opengate],[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
   if (!t) { if (e.target === $('overlay') && S.sheet?.type !== 'gate') closeSheet(); return; }
   if (t.dataset.go) { show(t.dataset.go); return; }
   if (t.dataset.term) { S.bondTerm = t.dataset.term; syncBondCard(S.data, S.data.room.status === 'running' && !(S.data.me.bills || []).length); return; }
@@ -1630,6 +1687,17 @@ document.addEventListener('click', async (e) => {
     const id = t.dataset.flip;
     if (S.flipped.has(id)) S.flipped.delete(id); else S.flipped.add(id);
     renderPlay();
+    return;
+  }
+  if ('alertlater' in t.dataset) { nextAlert(); return; }
+  if (t.dataset.alertpay) {
+    t.disabled = true;
+    const bill = S.data.me.bills.find((b) => String(b.id) === t.dataset.alertpay);
+    if (await doTrade('bill', 'pay', null, t.dataset.alertpay)) {
+      toast(`✅ Paid ${bill ? bill.title.replace(/[.!]$/, '') + ': ' + money(bill.amount) : 'the bill'}`, 'good', 3000);
+      nextAlert();
+      renderPlay();
+    } else { t.disabled = false; toast(S.lastError || 'Could not pay.', 'bad'); }
     return;
   }
   if (t.dataset.rl) { S.rlPick = t.dataset.rl; syncRoulette(S.data, S.data.room.status === 'running' && !(S.data.me.bills || []).length); return; }
