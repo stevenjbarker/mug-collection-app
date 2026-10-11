@@ -598,6 +598,14 @@ function spark(values, w = 200, h = 46, fill = true, trend = yearChange(values))
   const area = fill ? `<path d="${d} L${w} ${h} L0 ${h} Z" fill="${color}" opacity=".12"/>` : '';
   return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${area}<path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`;
 }
+// Balance and profit lines shown on every unlocked card.
+function moneyRows(h, extra = ''){
+  const value = h?.value || 0, cost = h?.cost || 0, gain = value - cost;
+  const cls = gain > 0.005 ? 'up' : gain < -0.005 ? 'down' : 'muted';
+  const sign = gain > 0.005 ? '+' : gain < -0.005 ? '−' : '';
+  return `<div class="row" style="margin-top:3px;"><span class="muted">Balance</span><span class="mine">${extra}${money(value)}</span></div>
+    <div class="row" style="margin-top:2px;"><span class="muted">Profit</span><span class="${cls}">${cost ? `${sign}${money(Math.abs(gain)).replace('−', '')} (${pct(gain / cost)})` : '$0'}</span></div>`;
+}
 const fmtShares = (n) => (Number.isInteger(n) ? n.toLocaleString('en-US') : n.toFixed(2));
 const yearChange = (h) => (h && h.length > 1 ? h[h.length - 1] / h[Math.max(0, h.length - 13)] - 1 : null);
 
@@ -810,7 +818,7 @@ function renderPlay(){
           <div class="blurb2">${esc(st.blurb)}</div>
           <div class="spark">${spark(st.history)}</div>
           <div class="row"><span>${money(st.price, true)}<span class="muted">/share</span></span><span class="${ch >= 0 ? 'up' : 'down'}">${ch == null ? '—' : pct(ch)} 1y</span></div>
-          <div class="row" style="margin-top:3px;"><span class="muted">You own</span><span class="mine">${shares ? `${fmtShares(shares)} sh · ${money(h.value)}` : '0 shares'}</span></div>`,
+          ${moneyRows(h, shares ? `<span class="muted" style="font-weight:600;">${fmtShares(shares)} sh · </span>` : '')}`,
           actions: `<div class="srow"><span class="slabel">Buy</span>${SHARE_STEPS.map((n) => `<button class="qbtn buy" data-shares="${n}" data-side="buy" data-asset="${st.id}" ${canBuy && affordable >= n ? '' : 'disabled'}>${n}</button>`).join('')}<button class="qbtn buy" data-shares="max" data-side="buy" data-asset="${st.id}" ${canBuy && affordable >= 1 ? '' : 'disabled'}>Max</button></div>
             <div class="srow"><span class="slabel">Sell</span>${SHARE_STEPS.map((n) => `<button class="qbtn sell" data-shares="${n}" data-side="sell" data-asset="${st.id}" ${running && shares >= n ? '' : 'disabled'}>${n}</button>`).join('')}<button class="qbtn sell" data-shares="all" data-side="sell" data-asset="${st.id}" ${running && shares > 0 ? '' : 'disabled'}>All</button></div>` });
       }
@@ -825,7 +833,7 @@ function renderPlay(){
         html: `${badge}${head(inv.icon)}
         <div class="spark">${spark(a?.history, 200, 46, true, 0)}</div>
         <div class="row"><span class="muted">Rate now</span><span class="mine">${a?.rate != null ? a.rate.toFixed(2) + '%' : '—'}</span></div>
-        <div class="row" style="margin-top:3px;"><span class="muted">You own</span><span class="mine">${h ? money(h.value) : '$0'}</span></div>
+        ${moneyRows(h)}
         <div class="row" style="margin-top:3px;"><span class="muted">${next != null ? 'Next payout' : 'Locked for'}</span><span>${next != null ? next : inv.term || 12} mo</span></div>`,
         actions: id === 'cd'
           ? `<button class="qbtn buy" data-quick="buy" data-asset="cd" ${off}>Buy</button><button class="qbtn sell" data-open="cd" ${h ? '' : 'disabled'}>Break…</button>`
@@ -837,7 +845,7 @@ function renderPlay(){
       html: `${badge}${head(inv.icon)}
       <div class="spark">${spark(a?.history)}</div>
       <div class="row"><span class="muted">Past year</span><span class="${ch >= 0 ? 'up' : 'down'}">${ch == null ? '—' : pct(ch)}</span></div>
-      <div class="row" style="margin-top:3px;"><span class="muted">${id === 'savings' ? 'Balance' : 'You own'}</span><span class="mine">${h ? money(h.value) + (h.cost && id !== 'savings' ? ` <span class="${h.value >= h.cost ? 'up' : 'down'}">(${pct(h.value / h.cost - 1)})</span>` : '') : '$0'}</span></div>`,
+      ${moneyRows(h)}`,
       actions: `<button class="qbtn buy" data-quick="buy" data-asset="${id}" ${off}>${buyV}</button><button class="qbtn sell" data-quick="sell" data-asset="${id}" ${h && running ? '' : 'disabled'}>${sellV}</button>` });
   }
   patchList($('invGrid'), cards);
