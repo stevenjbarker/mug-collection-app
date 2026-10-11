@@ -689,9 +689,21 @@ function stopPolling(){ polling = false; clearTimeout(pollTimer); clearInterval(
 async function pollLoop(){
   clearTimeout(pollTimer);
   if (!polling) return;
-  await poll();
-  if (polling) pollTimer = setTimeout(pollLoop, pollFails ? Math.min(5000, 1000 * pollFails) : 2000);
+  try {
+    await poll();
+  } catch (err) {
+    console.error('Stax update failed', err);
+  } finally {
+    // Always line up the next update, whatever happened to this one.
+    clearTimeout(pollTimer);
+    if (polling) pollTimer = setTimeout(pollLoop, pollFails ? Math.min(5000, 1000 * pollFails) : 2000);
+  }
 }
+// Watchdog: if updates have stalled for any reason, start them again.
+let lastPollDone = Date.now();
+setInterval(() => {
+  if (polling && !pollBusy && Date.now() - lastPollDone > 6000) pollLoop();
+}, 2000);
 // Catch up right away when an iPad wakes up or the network comes back.
 document.addEventListener('visibilitychange', () => { if (!document.hidden && polling && !pollBusy) pollLoop(); });
 window.addEventListener('online', () => { if (polling && !pollBusy) pollLoop(); });
@@ -707,8 +719,8 @@ async function poll(){
   if (pollBusy) return;
   pollBusy = true;
   const t0 = Date.now();
-  const r = await api('GET', null, params);
-  pollBusy = false;
+  let r;
+  try { r = await api('GET', null, params); } finally { pollBusy = false; lastPollDone = Date.now(); }
   if (r.status === 0 || r.status >= 500) { setConnection(false); return; }
   setConnection(true);
   if (!r.ok) {
@@ -728,7 +740,8 @@ async function poll(){
   if (d.me && S.data?.me && d.me.v < S.meV) d.me = S.data.me; // a trade answer is newer than this poll
   if (d.me) S.meV = Math.max(S.meV, d.me.v);
   S.data = d;
-  render();
+  // A drawing problem must never stop the game from updating.
+  try { render(); } catch (err) { console.error('Stax render failed', err); }
 }
 
 function forget(){
