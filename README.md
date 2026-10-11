@@ -40,7 +40,7 @@ needs the new passcode.
 
 A multiplayer classroom game: 20 real years of market history (somewhere
 between 1986 and 2025, revealed at the end), a $4,000 paycheck every 6 months,
-investments that unlock over time (savings, CDs, an index fund, 5–10 real
+investments that unlock over time (savings, CDs, an index fund, 3–5 real
 companies under made-up names, 1-month/3-month/1-year government bonds, real
 estate, gold), surprise bills the player has to pay within 3 months, and a
 live leaderboard. The host can also play from the same tab. The pig button on the passcode screen opens it.

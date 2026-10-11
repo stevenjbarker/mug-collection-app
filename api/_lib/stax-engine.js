@@ -11,7 +11,7 @@ export const CARD_APR = 0.22;
 const STOCKS_UNLOCK = 36;
 const BONDS_UNLOCK = 60;
 export const BILL_DUE = 3;          // months to pay a surprise bill before it starts charging interest
-const STOCKS_PER_GAME = [5, 10];
+const STOCKS_PER_GAME = [3, 5];
 
 // Fixed-term deposits: money is locked in at that month's real rate and paid
 // back to pocket cash at maturity. CDs charge a penalty to cash out early;
