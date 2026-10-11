@@ -169,7 +169,16 @@ export function newRoomSettings(seed) {
   while (stockIds.length < Math.min(count, eligible.length)) {
     stockIds.push(eligible.splice(Math.floor(r() * eligible.length), 1)[0]);
   }
-  return { startYear, events, stockIds, personalEvents: true };
+  // Fresh made-up names every game: a random first word (never repeated in
+  // the same game) plus one of the company's industry endings.
+  const words = [...NAME_WORDS];
+  const stockNames = {};
+  for (const id of stockIds) {
+    const s = stockById(id);
+    const word = words.splice(Math.floor(r() * words.length), 1)[0];
+    stockNames[id] = `${word} ${s.suffixes[Math.floor(r() * s.suffixes.length)]}`;
+  }
+  return { startYear, events, stockIds, stockNames, personalEvents: true };
 }
 
 const startIndex = (room) => (room.startYear - FIRST_YEAR) * 12;
@@ -241,6 +250,18 @@ export function isOver(room, now) {
 function stockById(id) {
   return STOCKS.find((s) => s.id === id);
 }
+
+// Neutral first words for made-up company names.
+const NAME_WORDS = [
+  'Meridian', 'Northgate', 'Halberd', 'Atlas', 'Granite', 'Prairie', 'Crossroads', 'Starlight', 'Velocity', 'Quartz',
+  'Bayline', 'Sterling', 'Keystone', 'Horizon', 'Benchmark', 'Whitfield', 'Hearthstone', 'Union', 'Bulwark', 'Lattice',
+  'Copperline', 'Riverbend', 'Prism', 'Marquee', 'Beacon', 'Summit', 'Harbor', 'Pinecrest', 'Bluewater', 'Ironwood',
+  'Redstone', 'Silverleaf', 'Oakmont', 'Lakeshore', 'Evergreen', 'Westbrook', 'Clearwater', 'Highland', 'Brightway', 'Cobalt',
+  'Falcon', 'Juniper', 'Maple Ridge', 'Northstar', 'Pioneer', 'Ridgeline', 'Tidewater', 'Windward', 'Cedar Point', 'Anchor',
+];
+
+// A company's name in this game (older rooms used the fixed names).
+const nameIn = (room, s) => room.stockNames?.[s.id] || s.name;
 
 // The companies dealt for this room (older rooms used all of them).
 function roomStocks(room) {
@@ -570,7 +591,7 @@ export function market(room, month) {
     for (const s of roomStocks(room)) {
       const lm = stockListedMonth(room, s);
       if (month < lm) continue;
-      stocks.push({ id: s.id, name: s.name, blurb: blurbFor(room, s), listedMonth: lm, price: round2(price(room, s.id, month)), history: series(room, s.id, lm, month) });
+      stocks.push({ id: s.id, name: nameIn(room, s), blurb: blurbFor(room, s), listedMonth: lm, price: round2(price(room, s.id, month)), history: series(room, s.id, lm, month) });
     }
   }
   return { assets, stocks };
@@ -590,7 +611,7 @@ export function news(room, month, player) {
   }
   for (const s of roomStocks(room)) {
     const lm = s.listed - k0;
-    if (lm > STOCKS_UNLOCK && lm <= month) out.push({ month: lm, kind: 'listing', text: `New on the market: ${s.name}. ${blurbFor(room, s)}` });
+    if (lm > STOCKS_UNLOCK && lm <= month) out.push({ month: lm, kind: 'listing', text: `New on the market: ${nameIn(room, s)}. ${blurbFor(room, s)}` });
   }
   for (const e of player || !room.personalEvents ? eventsFor(room, player) : []) {
     if (e.month <= month) out.push({ month: e.month, kind: e.amount > 0 ? 'windfall' : 'expense', text: e.title, amount: e.amount });
@@ -614,7 +635,7 @@ export function reveal(room, month = GAME_MONTHS) {
   for (let y = room.startYear; y < room.startYear + years; y++) inflation *= 1 + CPI[y - FIRST_YEAR];
   const stocks = roomStocks(room).filter((s) => stockListedMonth(room, s) < end && s.listed - k0 <= end).map((s) => {
     const lm = stockListedMonth(room, s);
-    return { id: s.id, name: s.name, real: REAL_NAMES[s.ticker] || s.ticker, ticker: s.ticker, change: round2(price(room, s.id, end) / price(room, s.id, lm) - 1) };
+    return { id: s.id, name: nameIn(room, s), real: REAL_NAMES[s.ticker] || s.ticker, ticker: s.ticker, change: round2(price(room, s.id, end) / price(room, s.id, lm) - 1) };
   });
   // What really happened, with the real dates.
   const MONTH_NAMES_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
