@@ -161,10 +161,31 @@ export function newRoomSettings(seed) {
   while (stockIds.length < Math.min(count, eligible.length)) {
     stockIds.push(eligible.splice(Math.floor(r() * eligible.length), 1)[0]);
   }
-  return { startYear, events, stockIds };
+  return { startYear, events, stockIds, personalEvents: true };
 }
 
 const startIndex = (room) => (room.startYear - FIRST_YEAR) * 12;
+
+// Each player gets the room's same set of surprises (so totals stay fair),
+// but in their own random order and at their own times.
+export function eventsFor(room, player) {
+  if (!room.personalEvents || !player) return room.events;
+  let h = 2166136261;
+  for (const c of `${room.code}:${player.id}`) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
+  const r = rng(h);
+  const shuffle = (arr) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  };
+  const bills = shuffle(room.events.filter((e) => e.amount < 0));
+  const gifts = shuffle(room.events.filter((e) => e.amount > 0));
+  const out = [
+    ...bills.map((e, i) => ({ ...e, month: 14 + i * 32 + Math.floor(r() * 18) })),
+    ...gifts.map((e, i) => ({ ...e, month: 40 + i * 110 + Math.floor(r() * 40) })),
+  ];
+  return out.sort((a, b) => a.month - b.month);
+}
 
 // Current game month (fractional), from the room's clock.
 export function gameMonth(room, now) {
@@ -336,8 +357,9 @@ export function settle(room, player, month) {
   delete p.cds;
   p.bills ||= [];
   p.log ||= [];
-  while (p.eventsDone < room.events.length && room.events[p.eventsDone].month <= month) {
-    const e = room.events[p.eventsDone];
+  const events = eventsFor(room, p);
+  while (p.eventsDone < events.length && events[p.eventsDone].month <= month) {
+    const e = events[p.eventsDone];
     matureLots(p, e.month);
     flagOverdueBills(room, p, e.month);
     if (e.amount > 0) p.cashDelta += e.amount;
@@ -530,7 +552,8 @@ export function market(room, month) {
   return { assets, stocks };
 }
 
-export function news(room, month) {
+// `player` adds that player's own bills and windfalls to the feed.
+export function news(room, month, player) {
   const out = [];
   const k0 = startIndex(room);
   // Game month m is calendar month m+1 of the first year (month 0 = January),
@@ -545,7 +568,7 @@ export function news(room, month) {
     const lm = s.listed - k0;
     if (lm > STOCKS_UNLOCK && lm <= month) out.push({ month: lm, kind: 'listing', text: `New on the market: ${s.name}. ${blurbFor(room, s)}` });
   }
-  for (const e of room.events) {
+  for (const e of player || !room.personalEvents ? eventsFor(room, player) : []) {
     if (e.month <= month) out.push({ month: e.month, kind: e.amount > 0 ? 'windfall' : 'expense', text: e.title, amount: e.amount });
   }
   return out.sort((a, b) => b.month - a.month).slice(0, 12).map(({ at, ...n }) => ({ ...n, label: monthLabel(at ?? n.month) }));
