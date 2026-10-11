@@ -213,6 +213,7 @@
   @media (max-width:820px){ .play{grid-template-columns:1fr;} }
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;}
   div.inv[data-open]{cursor:pointer;}
+  .stockcard{cursor:default;}
   .inv{
     position:relative;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;cursor:pointer;text-align:left;
     transition:transform .12s ease,border-color .12s ease;display:block;width:100%;
@@ -1391,12 +1392,10 @@ function renderPlay(){
         const isNew = m - st.listedMonth < 12;
         const shares = h?.shares || 0;
         const affordable = Math.floor((me.cash + 0.005) / st.price);
-        const flipped = S.flipped.has(st.id);
-        cards.push({ key: st.id, cls: 'inv stockcard' + (flipped ? ' flipped' : ''), open: flipped ? null : st.id,
-          corner: `<button class="flipbtn" data-flip="${st.id}" aria-label="About this company">${flipped ? '×' : '?'}</button>`,
-          html: flipped
-            ? `${head('🏷️', esc(st.name), 'About the company')}<div class="backtext">${esc(st.blurb)}</div>`
-            : `${isNew ? '<span class="new">NEW</span>' : ''}${head('🏷️', esc(st.name), 'Stock')}
+        // Tapping the card does nothing; only the ? opens the company's details.
+        cards.push({ key: st.id, cls: 'inv stockcard', open: null,
+          corner: `<button class="flipbtn" data-open="${st.id}" aria-label="About this company">?</button>`,
+          html: `${isNew ? '<span class="new">NEW</span>' : ''}${head('🏷️', esc(st.name), 'Stock')}
           <div class="spark">${spark(st.history)}</div>
           <div class="row pricerow"><span>${money(st.price, true)}<span class="muted sh">/sh</span></span><span class="mo">${moveHtml(monthMove(st.history))} <span class="muted">mo</span></span></div>
           ${moneyRows(h, shares ? `<span class="muted" style="font-weight:600;">${fmtShares(shares)} sh · </span>` : '')}`,
