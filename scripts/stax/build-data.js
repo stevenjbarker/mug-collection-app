@@ -7,6 +7,9 @@
 //   "Historical Returns on Stocks, Bonds, Bills..." (histretSP.xls).
 //   S&P 500 incl. dividends, 3-month T-bill, 10-year T-bond, Baa corporate
 //   bonds, US home prices, gold, and CPI inflation.
+// - cd-rates.csv: monthly rates from the Federal Reserve's H.15 release —
+//   the 6-month CD rate (secondary market) through June 2013, when the Fed
+//   stopped publishing it, and the 1-year Treasury yield after that.
 // - Yahoo Finance monthly closes: the S&P 500 (^GSPC) for the month-to-month
 //   shape of the index fund, and dividend/split-adjusted closes for each
 //   company in companies.js.
@@ -90,7 +93,6 @@ async function main() {
   const assets = {
     savings: round(smooth(years, 'tbill')),
     treasury: round(smooth(years, 'tbond')),
-    corporate: round(smooth(years, 'baa')),
     index: round(indexFund(years, gspc)),
     realestate: round(smooth(years, 'realestate')),
     gold: round(smooth(years, 'gold')),
@@ -108,6 +110,22 @@ async function main() {
     await new Promise((r) => setTimeout(r, 250));
   }
 
+  // CD rate for each index month k (the average for calendar month k).
+  const cdText = await fs.readFile(path.join(ROOT, 'scripts/stax/cd-rates.csv'), 'utf8');
+  const cdByMonth = {};
+  for (const row of cdText.trim().split('\n').slice(1)) {
+    const [month, cd6m, tsy1y] = row.split(',');
+    const v = cd6m !== '' ? Number(cd6m) : tsy1y !== '' ? Number(tsy1y) : null;
+    if (v != null) cdByMonth[month] = v / 100;
+  }
+  const cdRate = [];
+  for (let k = 0; k <= MONTHS; k++) {
+    const y = FIRST_YEAR + Math.floor((k - 1) / 12);
+    const m = ((k - 1) % 12 + 12) % 12 + 1;
+    cdRate.push(cdByMonth[`${y}-${String(m).padStart(2, '0')}`] ?? null);
+  }
+  if (cdRate.slice(12).some((v) => v == null)) throw new Error('CD rates have gaps');
+
   const cpi = [];
   for (let y = FIRST_YEAR; y <= LAST_YEAR; y++) cpi.push(Number(years[y].cpi.toFixed(5)));
 
@@ -118,6 +136,8 @@ export const LAST_YEAR = ${LAST_YEAR};
 export const ASSET_INDEX = ${JSON.stringify(assets)};
 export const STOCKS = ${JSON.stringify(stocks)};
 export const CPI = ${JSON.stringify(cpi)};
+// Annual CD rate (decimal) for each month; null where there's no data.
+export const CD_RATE = ${JSON.stringify(cdRate)};
 `;
   await fs.mkdir(path.join(ROOT, 'api/_lib'), { recursive: true });
   await fs.writeFile(path.join(ROOT, 'api/_lib/stax-data.js'), out);

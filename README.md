@@ -49,7 +49,8 @@ leaderboard. The pig button on the passcode screen opens it.
   Redis, connected to this project). It adds `KV_REST_API_URL` and
   `KV_REST_API_TOKEN`. Rooms expire after two days.
 - **Data:** `scripts/stax/annual-returns.csv` (from Aswath Damodaran's
-  historical returns) and `scripts/stax/companies.js` (the real companies
+  historical returns), `scripts/stax/cd-rates.csv` (Federal Reserve H.15:
+  6-month CD rate to mid-2013, then the 1-year Treasury yield) and `scripts/stax/companies.js` (the real companies
   behind the disguised stocks). To refresh, run
   `node scripts/stax/build-data.js`, which writes `api/_lib/stax-data.js`.
 - The server is the only source of prices; players never receive prices from

@@ -75,6 +75,8 @@
   .stat .value{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;}
   .stat.debt .value{color:var(--down);}
   .stat .of{font-size:13px;font-weight:600;color:var(--muted);}
+  .stat .gap{font-size:12px;color:var(--muted);max-width:190px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .stat .gap b{color:var(--gold);}
   .paused-banner{max-width:1100px;margin:8px auto 0;background:var(--gold);color:var(--ink);border-radius:10px;padding:6px 12px;font-weight:700;text-align:center;}
 
   /* ---------- play ---------- */
@@ -185,6 +187,7 @@
     .stat{flex:1;text-align:left;}
     .stat .label{font-size:10px;letter-spacing:.6px;}
     .stat .value{font-size:18px;}
+    .stat .gap{font-size:11px;white-space:normal;line-height:1.25;max-width:none;}
     .stat.debt{flex:1 1 100%;display:flex;align-items:center;gap:10px;}
     .stat.debt .label{flex:1;}
     .stat.debt button{margin-top:0 !important;}
@@ -267,7 +270,7 @@
         <div class="month" id="pMonth"></div>
         <div class="bar"><div id="pBar"></div></div>
       </div>
-      <div class="stat"><div class="label">Rank</div><div class="value" id="pRank">#–</div></div>
+      <div class="stat rankstat"><div class="label">Rank</div><div class="value" id="pRank">#–</div><div class="gap" id="pGap"></div></div>
       <div class="stat"><div class="label">Pocket cash</div><div class="value" id="pCash">$0</div></div>
       <div class="stat"><div class="label">Net worth</div><div class="value" id="pWorth">$0</div></div>
       <div class="stat debt hidden" id="pDebtWrap">
@@ -353,7 +356,7 @@
     <table class="reveal" id="rStocks"></table>
   </div>
   <button class="btn" id="againBtn" style="margin-top:22px;">Back to start</button>
-  <p class="muted" style="font-size:12px;margin-top:22px;line-height:1.5;">Real history: yearly returns for savings (3-month T-bills), government bonds (10-year Treasuries), corporate bonds (Baa), the S&amp;P 500, U.S. home prices and gold from Aswath Damodaran, NYU Stern. Monthly stock prices from Yahoo Finance, adjusted for dividends and splits.</p>
+  <p class="muted" style="font-size:12px;margin-top:22px;line-height:1.5;">Real history: yearly returns for savings (3-month T-bills), government bonds (10-year Treasuries), the S&amp;P 500, U.S. home prices and gold from Aswath Damodaran, NYU Stern. CD rates from the Federal Reserve (6-month CD rate through mid-2013, then the 1-year Treasury yield). Monthly stock prices from Yahoo Finance, adjusted for dividends and splits.</p>
 </section>
 
 <!-- ============ SHEET + TOASTS ============ -->
@@ -373,21 +376,21 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 
 const INV = {
   savings:   { name: 'Savings Account', icon: '🏦', risk: 'Very low risk', unlock: 0,
-    lesson: 'A savings account pays a small amount of interest to hold your money. It almost never loses value, so it is the home for your emergency fund. Surprise bills come out of pocket cash first, then savings. No savings? It goes on a credit card at 22% interest.' },
-  treasury:  { name: 'Government Bonds', icon: '🏛️', risk: 'Low risk', unlock: 12,
-    lesson: 'A bond is a loan. When you buy a government bond you lend money to the U.S. government and it pays you interest. Bond prices move opposite to interest rates: when rates jump, existing bonds lose value for a while.' },
+    lesson: 'A savings account pays a small amount of interest to hold your money. It almost never loses value, so it is the home for your emergency fund. Surprise bills come out of pocket cash first, then savings, then by breaking your CDs. Still short? It goes on a credit card at 22% interest.' },
+  cd:        { name: 'CDs', icon: '🔐', risk: 'Very low risk', unlock: 12,
+    lesson: 'A CD (certificate of deposit) is a deal with a bank: you lock your money up for one year and the bank pays a fixed interest rate, usually more than savings. When it matures, your money plus interest lands back in your pocket cash. Need it sooner? You can break it, but you pay a penalty of 3 months of interest.' },
   index:     { name: 'Index Fund', icon: '📈', risk: 'Medium risk', unlock: 24,
     lesson: 'An index fund buys a tiny slice of the 500 biggest U.S. companies all at once. When one company stumbles, the others carry it. Some years it drops hard, but over long stretches it has grown more than almost anything else.' },
   stocks:    { name: 'Individual Stocks', icon: '🏷️', risk: 'High risk', unlock: 36,
     lesson: 'A share of stock is a piece of ownership in one company. If the company grows, so does your share. If it struggles, you can lose a lot. These are REAL companies with their names changed. Read the descriptions and decide who you believe in.' },
-  corporate: { name: 'Corporate Bonds', icon: '🏢', risk: 'Low–medium risk', unlock: 60,
-    lesson: 'Corporate bonds are loans to companies instead of the government. Companies are more likely to fail to pay you back, so they pay higher interest to make up for that risk.' },
+  treasury:  { name: 'Government Bonds', icon: '🏛️', risk: 'Low risk', unlock: 60,
+    lesson: 'A bond is a loan. When you buy a government bond you lend money to the U.S. government and it pays you interest. Bond prices move opposite to interest rates: when rates jump, existing bonds lose value for a while.' },
   realestate:{ name: 'Real Estate', icon: '🏠', risk: 'Medium risk', unlock: 84,
     lesson: 'This tracks the price of U.S. homes. Real estate usually rises slowly with the economy, but when a housing bubble pops, prices can fall for years.' },
   gold:      { name: 'Gold', icon: '🪙', risk: 'High risk', unlock: 108,
     lesson: 'Gold pays no interest and no dividends. Its price moves on fear and inflation: people rush to it when they are scared. It can sit still for a decade, then shoot up.' },
 };
-const ORDER = ['savings','treasury','index','stocks','corporate','realestate','gold'];
+const ORDER = ['savings','cd','index','stocks','treasury','realestate','gold'];
 
 // ---------- storage (per-device, best effort) ----------
 const store = {
@@ -521,7 +524,7 @@ async function poll(){
 function forget(){
   if (S.code) { store.del('stax:p:' + S.code); store.del('stax:h:' + S.code); }
   store.del('stax:last');
-  S = { ...S, role: null, code: null, player: null, token: null, hostKey: null, data: null, meV: -1, seenNews: null, lastPayIdx: null, seenUnlock: null };
+  S = { ...S, role: null, code: null, player: null, token: null, hostKey: null, data: null, meV: -1, seenNews: null, lastPayIdx: null, seenUnlock: null, seenMatured: null };
 }
 
 // ---------- render ----------
@@ -585,6 +588,12 @@ function announce(d){
     else if (n.kind === 'listing') toast(`🔔 New stock: ${n.text.replace('New on the market: ', '').split('.')[0]}`, 'news');
     else toast('📰 ' + n.text, 'news', 7000);
   }
+  for (const mt of d.me.matured || []) {
+    S.seenMatured ||= new Set(first ? (d.me.matured || []).map((x) => x.id) : []);
+    if (S.seenMatured.has(mt.id)) continue;
+    S.seenMatured.add(mt.id);
+    toast(`🔓 A CD matured: +${money(mt.value)} back in your pocket cash`, 'good', 4000);
+  }
   const m = Math.floor(d.room.month);
   const payIdx = Math.min(39, Math.floor(m / 6));
   if (S.lastPayIdx !== null && payIdx > S.lastPayIdx && d.room.status === 'running') toast(`💵 Payday! +${money(d.room.paycheck)}`, 'good', 2500);
@@ -607,6 +616,16 @@ function renderPlay(){
   renderClock('p');
   const rank = d.leaderboard.findIndex((p) => p.id === me.id) + 1;
   $('pRank').innerHTML = rank ? `#${rank}<span class="of"> of ${d.leaderboard.length}</span>` : '#–';
+  // How far you are from the player one spot ahead (or your lead over #2).
+  const ahead = d.leaderboard[rank - 2], behind = d.leaderboard[rank];
+  let gap = '';
+  if (rank > 1 && ahead) {
+    const diff = ahead.netWorth - me.netWorth;
+    gap = diff < 1 ? `Tied with ${esc(ahead.name)}` : `<b>${money(diff)}</b> behind ${esc(ahead.name)}`;
+  } else if (rank === 1 && behind) {
+    gap = `Leading by <b>${money(me.netWorth - behind.netWorth)}</b>`;
+  }
+  setHtml($('pGap'), gap);
   $('pCash').textContent = money(me.cash);
   $('pWorth').textContent = money(me.netWorth);
   $('pDebtWrap').classList.toggle('hidden', !(me.debt > 0));
@@ -634,6 +653,15 @@ function renderPlay(){
     }
     const a = assets[id];
     const h = me.holdings[id];
+    if (id === 'cd') {
+      const next = h ? Math.min(...h.lots.map((l) => l.maturesIn)) : null;
+      return { key: id, cls: 'inv', open: id,
+        html: `${fresh ? '<span class="new">NEW</span>' : ''}${head(inv.icon)}
+        <div class="spark">${spark(a?.history, 200, 46, true, 0)}</div>
+        <div class="row"><span class="muted">1-year rate now</span><span class="mine">${a?.rate != null ? a.rate.toFixed(2) + '%' : '—'}</span></div>
+        <div class="row" style="margin-top:4px;"><span class="muted">You own</span><span class="mine">${h ? money(h.value) : '$0'}</span></div>
+        ${next != null ? `<div class="row" style="margin-top:4px;"><span class="muted">Next payout in</span><span>${next} mo</span></div>` : ''}` };
+    }
     const ch = yearChange(a?.history);
     return { key: id, cls: 'inv', open: id,
       html: `${fresh ? '<span class="new">NEW</span>' : ''}${head(inv.icon)}
@@ -688,6 +716,7 @@ function renderSheet(fresh = false){
     }));
     return;
   }
+  if (sh.id === 'cd') { renderCdSheet(fresh); return; }
   // trade sheet for an asset or a single stock
   const isStock = !INV[sh.id];
   const item = isStock ? (d.market?.stocks || []).find((s) => s.id === sh.id) : (d.market?.assets || []).find((a) => a.id === sh.id);
@@ -735,11 +764,54 @@ function renderSheet(fresh = false){
   }
 }
 
-async function doTrade(asset, side, amount){
+function renderCdSheet(fresh){
+  const d = S.data, el = $('sheet');
+  const a = (d.market?.assets || []).find((x) => x.id === 'cd');
+  if (!a?.unlocked) { closeSheet(); return; }
+  if (fresh) {
+    el.innerHTML = `<button class="close" data-close>×</button>
+      <div class="big-emoji">${INV.cd.icon}</div>
+      <h3 class="display">CDs</h3>
+      <p class="lesson">${INV.cd.lesson}</p>
+      <div class="chart" id="tChart"></div>
+      <div class="muted" style="font-size:12px;" id="tMonths"></div>
+      <div class="facts">
+        <div><div class="label">1-year rate now</div><div class="value" id="tPrice"></div></div>
+        <div><div class="label">Locked for</div><div class="value">12 months</div></div>
+        <div><div class="label">You own</div><div class="value" id="tOwn"></div></div>
+      </div>
+      <div class="muted" style="font-size:14px;">Pocket cash: <b style="color:var(--cream);" id="tCash"></b></div>
+      <input class="field" id="amt" inputmode="decimal" enterkeyhint="done" placeholder="Amount in dollars" style="margin-top:8px;">
+      <div class="chips">
+        ${[100, 500, 1000, 5000].map((v) => `<button class="chip" data-amt="${v}">${money(v)}</button>`).join('')}
+        <button class="chip" data-amt="all">All my cash</button>
+      </div>
+      <div class="error" id="tradeError"></div>
+      <div class="actions"><button class="btn" data-trade="buy">Open a CD</button></div>
+      <div id="cdLots" style="margin-top:16px;"></div>`;
+    if (window.matchMedia('(min-width:700px)').matches) setTimeout(() => $('amt')?.focus(), 50);
+  }
+  const h = d.me.holdings.cd;
+  setHtml($('tChart'), spark(a.history, 400, 120, true, 0));
+  $('tMonths').textContent = `CD rates, last ${a.history.length - 1} months`;
+  $('tPrice').textContent = a.rate.toFixed(2) + '%';
+  $('tOwn').textContent = h ? money(h.value) : '$0';
+  $('tCash').textContent = money(d.me.cash);
+  const running = d.room.status === 'running';
+  if (!S.busy) el.querySelector('[data-trade="buy"]').disabled = !running;
+  setHtml($('cdLots'), h ? `<div class="label muted" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Your CDs</div>` +
+    h.lots.map((l) => `<div class="stock" style="cursor:default;">
+      <div class="info"><div class="sname">${money(l.amount)} at ${(l.rate * 100).toFixed(2)}%</div>
+        <div class="blurb">Worth ${money(l.value)} now · pays out in ${l.maturesIn} month${l.maturesIn === 1 ? '' : 's'}</div></div>
+      <button class="btn small sell" data-breakcd="${esc(l.id)}" ${running ? '' : 'disabled'}>Break for ${money(l.breakValue)}</button>
+    </div>`).join('') : '');
+}
+
+async function doTrade(asset, side, amount, lot){
   if (S.busy) return;
   S.busy = true;
   document.querySelectorAll('[data-trade]').forEach((b) => (b.disabled = true));
-  const r = await api('POST', { action: 'trade', code: S.code, player: S.player, token: S.token, asset, side, amount }).catch(() => ({ ok: false, data: { error: 'No connection.' } }));
+  const r = await api('POST', { action: 'trade', code: S.code, player: S.player, token: S.token, asset, side, amount, lot }).catch(() => ({ ok: false, data: { error: 'No connection.' } }));
   S.busy = false;
   if (!r.ok) {
     renderSheet();
@@ -870,7 +942,7 @@ $('payDebtBtn').addEventListener('click', async () => {
 });
 
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
+  const t = e.target.closest('[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go],[data-breakcd]');
   if (!t) { if (e.target === $('overlay')) closeSheet(); return; }
   if (t.dataset.go) { show(t.dataset.go); return; }
   if ('close' in t.dataset) { closeSheet(); return; }
@@ -879,6 +951,12 @@ document.addEventListener('click', async (e) => {
   if (t.dataset.amt) {
     const v = t.dataset.amt;
     $('amt').value = v === 'all' ? Math.floor(S.data.me.cash * 100) / 100 : v;
+    return;
+  }
+  if (t.dataset.breakcd) {
+    const lot = S.data.me.holdings.cd?.lots.find((l) => l.id === t.dataset.breakcd);
+    if (!lot || !confirm(`Break this CD early? You'll get ${money(lot.breakValue)} (3 months of interest is the penalty).`)) return;
+    if (await doTrade('cd', 'sell', null, lot.id)) { toast(`🔓 Broke a CD: +${money(lot.breakValue)} to pocket cash`, '', 2500); renderPlay(); }
     return;
   }
   if (t.dataset.kick) {
