@@ -381,7 +381,8 @@
     .inv .spark{height:18px;}
     .inv .row{line-height:1.22;}
     .stockcard .row .mo{font-size:11px;}
-    .pricerow{font-size:11px !important;gap:4px;} .pricerow .sh{display:none;}
+    .pricerow{font-size:11px !important;gap:0 4px;flex-wrap:wrap;} .pricerow .sh{display:none;}
+    .pricerow .mo{margin-left:auto;}
     .pricerow .mo{letter-spacing:-.2px;}
     .ratecard .spark,.ratecard .payrow{display:none;}
     .lots{margin:3px 0 0;gap:4px;}
@@ -398,11 +399,15 @@
     .bondcard .term{padding:4px 0;gap:3px;min-width:0;}
     .bondcard .term b{font-size:13px;} .bondcard .term span{font-size:10px;}
     .apyrow{flex-wrap:wrap;gap:0 6px;}
-    .buyrow .maxb{padding:0 6px;}
+    .buyrow .maxb{padding:0 5px;font-size:11px;}
+    .buyrow input{padding:4px 4px;font-size:13px;}
     .buyrow .qbtn{flex-basis:46px;}
     .legend{flex-wrap:nowrap;white-space:nowrap;}
     .wheelrow{margin:4px 0 2px;} .ball{width:34px;height:34px;font-size:14px;border-width:2px;} .rlres{font-size:11.5px;}
-    .rlp{padding:3px 0;font-size:12px;} .rlodds{font-size:11px;} .roulettecard .qa{gap:4px;}
+    .rlp{padding:3px 0;font-size:12px;} .rlodds{font-size:10.5px;} .roulettecard .qa{gap:3px;}
+    .roulettecard .rlbet{display:none;}
+    .roulettecard .wheelrow{margin:2px 0;} .roulettecard .ball{width:28px;height:28px;font-size:12px;}
+    .roulettecard .rlres{font-size:11px;line-height:1.2;}
   }
   /* ---------- phones (keep last so it wins) ---------- */
   @media (max-width:600px){
@@ -712,6 +717,7 @@ let S = {
 let pollTimer = null, tickTimer = null;
 
 function show(id){
+  if (id !== 'play' && typeof fitToScreen === 'function') { document.body.style.zoom = ''; fitZoom = 1; fitKey = ''; }
   for (const s of ['home','hostAuth','lobby','play','host','results']) $(s).classList.toggle('hidden', s !== id);
   window.scrollTo(0, 0);
 }
@@ -1125,6 +1131,42 @@ function renderAlert(){
     </div></div>`);
 }
 
+// ---------- fill the screen on iPads ----------
+// On tablets and laptops the game is scaled up as far as it can go while
+// still fitting on one screen, so a big iPad Pro gets big, readable cards.
+let fitKey = '', fitZoom = 1;
+function fitToScreen(force = false){
+  const play = $('play');
+  const on = !play.classList.contains('hidden') && innerWidth >= 700;
+  const key = [innerWidth, innerHeight, $('invGrid').children.length, (S.data?.me?.bills || []).length,
+    !$('hostBar').classList.contains('hidden'), !$('pPaused').classList.contains('hidden')].join('|');
+  if (!on) { if (fitZoom !== 1) { document.body.style.zoom = ''; fitZoom = 1; } $('invGrid').style.gridTemplateColumns = ''; fitKey = ''; return; }
+  if (!force && key === fitKey) return;
+  fitKey = key;
+  const grid = $('invGrid');
+  // Try a few column counts and keep whichever lets everything be biggest.
+  const fits = (z) => {
+    document.body.style.zoom = z;
+    const r = play.getBoundingClientRect();
+    const card = grid.firstElementChild?.getBoundingClientRect();
+    const cardCss = card ? card.width / z : 999; // keep cards readable
+    return r.bottom <= innerHeight + 1 && r.right <= innerWidth + 1 && cardCss >= 140;
+  };
+  const best = { z: 1, cols: '' };
+  for (const cols of ['', 4, 5, 6, 7]) {
+    grid.style.gridTemplateColumns = cols ? `repeat(${cols}, minmax(0, 1fr))` : '';
+    if (!fits(1)) continue;
+    let lo = 1, hi = 2.4;
+    for (let i = 0; i < 9; i++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
+    if (lo > best.z + 0.005) { best.z = lo; best.cols = cols; }
+  }
+  grid.style.gridTemplateColumns = best.cols ? `repeat(${best.cols}, minmax(0, 1fr))` : '';
+  fitZoom = Math.floor(best.z * 100) / 100;
+  document.body.style.zoom = fitZoom;
+}
+window.addEventListener('resize', () => fitToScreen(true));
+window.addEventListener('orientationchange', () => setTimeout(() => fitToScreen(true), 300));
+
 // ---------- unlock pauses ----------
 // When something new unlocks, the game pauses until every player has read
 // about it and pressed Ready.
@@ -1255,7 +1297,7 @@ function renderPlay(){
         html: `${badge}${head(inv.icon)}
         <div class="wheelrow"><div class="ball ${last ? last.color : 'idle'}" id="rlBall">${last ? last.label : '?'}</div>
           <div class="rlres" id="rlRes">${last ? (last.delta > 0 ? `<b class="up">Won ${money(last.delta)}</b>` : `<b class="down">Lost ${money(-last.delta)}</b>`) + `<br><span class="muted">bet ${money(last.amount)} on ${last.pick === '00' ? '00' : last.pick}</span>` : '<span class="muted">Place a bet and spin.</span>'}</div></div>
-        <div class="row" style="margin-top:3px;"><span class="muted">Total bet</span><span class="mine">${money(c?.wagered || 0)}</span></div>
+        <div class="row rlbet" style="margin-top:3px;"><span class="muted">Total bet</span><span class="mine">${money(c?.wagered || 0)}</span></div>
         <div class="row"><span class="muted">Casino profit</span><span class="${(c?.net || 0) > 0 ? 'up' : (c?.net || 0) < 0 ? 'down' : 'muted'}">${(c?.net || 0) >= 0 ? '+' : '−'}${money(Math.abs(c?.net || 0))}</span></div>`,
         actions: `<div class="rlpicks"><button class="rlp red" data-rl="red">Red</button><button class="rlp black" data-rl="black">Black</button><button class="rlp green" data-rl="00">00</button></div>
           <div class="rlodds" id="rlOdds"></div>
@@ -1308,6 +1350,7 @@ function renderPlay(){
   announce(d);
   if (S.sheet) renderSheet();
   if (alertShown) renderAlert();
+  fitToScreen();
 }
 
 // ---------- sheets ----------
