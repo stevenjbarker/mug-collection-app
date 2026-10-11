@@ -406,12 +406,16 @@
     .pie{width:30px;height:30px;border-width:1px;} .pie span{display:none;}
     .pielabel .pv{display:inline;font-weight:800;}
     .pielabel{font-size:10px;text-align:left;color:var(--cream);}
-    .bondcard{display:grid;grid-template-columns:1fr 1.25fr;column-gap:12px;align-content:start;}
+    /* bond card: stacked, so the term picker and buy row get the full width */
+    .bondcard .cbody .row{display:inline-flex;gap:6px;margin-right:14px;}
+    .bondcard .lots{justify-content:flex-start;}
+    .bondcard .qa{margin-top:6px;}
+    .bondcard .pleft{display:none;}
+    .bondcard .pie{width:20px;height:20px;}
+    .bondcard .lotpie{gap:3px;}
+    .bondcard .lots{gap:4px 10px;margin-top:4px;}
+    .bondcard .apyrow{padding-bottom:2px;}
     .bondcard .corner{display:none;}
-    .bondcard .cbody{grid-column:1;grid-row:1;}
-    .bondcard .lots{grid-column:1;grid-row:2;justify-content:flex-start;}
-    .bondcard .qa{grid-column:2;grid-row:1 / span 2;margin-top:0;min-width:0;}
-    .bondcard .cbody,.bondcard .lots{min-width:0;}
     .bondcard .term{padding:4px 0;gap:3px;min-width:0;}
     .bondcard .term b{font-size:13px;} .bondcard .term span{font-size:10px;}
     .apyrow{flex-wrap:wrap;gap:0 6px;}
@@ -869,7 +873,7 @@ function lotPies(lots, running){
     return {
       key: l.id, cls: 'lotpie', data: { cashout: l.id, kind: l.kind },
       html: `<div class="pie" style="--p:${(done * 100).toFixed(0)}%"><span>${money(l.value)}</span></div>
-        <div class="pielabel"><span class="pv">${money(l.value)} · </span>${TERM_LABEL[l.kind]} · ${l.maturesIn} mo left</div>`,
+        <div class="pielabel"><span class="pv">${money(l.value)} · </span>${TERM_LABEL[l.kind]}<span class="pleft"> · ${l.maturesIn} mo left</span></div>`,
     };
   });
 }
