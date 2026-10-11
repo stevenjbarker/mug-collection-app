@@ -106,7 +106,30 @@ export const GET = handle(async (request) => {
   const body = { now, room: pub, leaderboard: board, news: game.news(room, month, me) };
   if (pub.status !== 'lobby') body.market = game.market(room, month);
   if (me) body.me = { id: me.id, name: me.name, v: me.v, ...game.summarize(room, me, month) };
-  if (pub.status === 'done') body.reveal = game.reveal(room, month);
+  if (pub.status === 'done') {
+    body.reveal = game.reveal(room, month);
+    // Everyone's balances over time, rebuilt from their trades once when the
+    // game ends and then kept (games started after the trade log existed).
+    if (room.gatesDone) {
+      try {
+        let hist = await store.getRoomHistory(code);
+        if (!hist || hist.end !== month) {
+          hist = { end: month, months: null, players: {} };
+          for (const { id, player } of players) {
+            const h = game.replayHistory(room, id, await store.getTrades(code, id), month);
+            hist.months = h.months;
+            hist.players[id] = { name: player.name, series: h.series };
+          }
+          await store.saveRoomHistory(code, hist);
+        }
+        if (me && hist.players[me.id]) body.history = { months: hist.months, series: hist.players[me.id].series };
+        body.compare = {
+          months: hist.months,
+          players: Object.entries(hist.players).map(([id, p]) => ({ id, name: p.name, total: p.series.total })),
+        };
+      } catch (e) { console.error('history', e); }
+    }
+  }
   return json(body, 200, { 'server-timing': `db;dur=${dbMs.toFixed(0)}, total;dur=${(performance.now() - t0).toFixed(0)}` });
 });
 
@@ -185,10 +208,13 @@ export const POST = handle(async (request) => {
     for (let attempt = 0; attempt < 3; attempt++) {
       const rec = await store.getPlayer(code, String(body.player || ''));
       if (!rec || !sameHash(body.token, rec.player.tokenHash)) return json({ error: 'not in game' }, 403);
-      const next = game.trade(room, rec.player, month, { asset: String(body.asset), side: String(body.side), amount: body.amount, lot: body.lot == null ? undefined : String(body.lot),
-        shares: body.shares == null ? undefined : body.shares === 'max' || body.shares === 'all' ? body.shares : Number(body.shares) });
+      const req = { asset: String(body.asset), side: String(body.side), amount: body.amount, lot: body.lot == null ? undefined : String(body.lot),
+        shares: body.shares == null ? undefined : body.shares === 'max' || body.shares === 'all' ? body.shares : Number(body.shares) };
+      const next = game.trade(room, rec.player, month, req);
       try {
         await store.savePlayer(code, rec.raw, next);
+        // Remember the trade for the end-of-game chart (never blocks a trade).
+        await store.appendTrade(code, rec.player.id, game.tradeLogEntry(month, req, game.settle(room, rec.player, month), next)).catch((e) => console.error('trade log', e));
         return json({ me: { id: next.id, name: next.name, v: next.v, ...game.summarize(room, next, month) } });
       } catch (err) {
         if (!(err instanceof store.ConflictError)) throw err;

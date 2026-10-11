@@ -108,6 +108,7 @@
   .sqbtns{display:flex;gap:6px;}
   .sqbtns .qbtn{font-size:13px;}
   .bondcard{grid-column:span 2;}
+  .rowlabel{margin:14px 0 8px;font-size:13px;font-weight:800;letter-spacing:.5px;color:#9dbbff;text-transform:uppercase;}
   .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:0 0 10px;}
   .lg::before{content:'';display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;}
   .lg.gamble::before{background:#e0575b;}
@@ -314,6 +315,21 @@
   .bench .bv{width:100px;text-align:right;font-weight:700;}
   table.reveal{width:100%;border-collapse:collapse;font-size:14px;}
   table.reveal td{padding:7px 4px;border-bottom:1px solid var(--line);}
+  .htotal{display:flex;flex-direction:column;margin:0 0 4px;}
+  .htotal span{font-size:12px;text-transform:uppercase;letter-spacing:1px;}
+  .htotal b{font-family:'Abril Fatface',Georgia,serif;font-weight:400;font-size:34px;color:var(--gold);}
+  .hchart{position:relative;}
+  .hchart svg{display:block;width:100%;height:auto;touch-action:pan-y;}
+  .hgrid{stroke:var(--line);stroke-width:1;}
+  .hax{fill:var(--muted);font-size:11px;font-variant-numeric:tabular-nums;}
+  .hcross{stroke:var(--cream);stroke-width:1;opacity:.5;}
+  .htip{position:absolute;top:6px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px;pointer-events:none;min-width:170px;box-shadow:0 4px 14px rgba(0,0,0,.35);}
+  .htip div{display:flex;align-items:center;gap:6px;margin-top:2px;}
+  .htip div span{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums;}
+  .htip i,.hl i{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none;}
+  .hlegend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:12.5px;}
+  .hl{display:inline-flex;align-items:center;gap:6px;color:var(--muted);}
+  .hl b{color:var(--cream);font-variant-numeric:tabular-nums;}
   .pf{border-bottom:1px solid var(--line);padding:8px 0;}
   .pf summary{cursor:pointer;display:flex;gap:8px;align-items:center;list-style:none;}
   .pf summary::-webkit-details-marker{display:none;}
@@ -403,6 +419,8 @@
     .buyrow input{padding:4px 4px;font-size:13px;}
     .buyrow .qbtn{flex-basis:46px;}
     .legend{flex-wrap:nowrap;white-space:nowrap;}
+    .rowlabel{margin:8px 0 5px;font-size:11px;}
+    #invGrid2{margin-top:6px !important;}
     .wheelrow{margin:4px 0 2px;} .ball{width:34px;height:34px;font-size:14px;border-width:2px;} .rlres{font-size:11.5px;}
     .rlp{padding:3px 0;font-size:12px;} .rlodds{font-size:10.5px;} .roulettecard .qa{gap:3px;}
     .roulettecard .rlbet{display:none;}
@@ -550,6 +568,9 @@
     <div>
       <div class="legend"><span class="lg safe">Safe savings</span><span class="lg fund">Funds &amp; assets</span><span class="lg stock">Individual stocks</span><span class="lg gamble">Gambling</span></div>
       <div class="grid" id="invGrid"></div>
+      <div class="rowlabel" id="stockLabel">🏷️ Individual stocks</div>
+      <div class="grid stockgrid" id="stockGrid"></div>
+      <div class="grid" id="invGrid2" style="margin-top:8px;"></div>
     </div>
     <div class="side">
       <div class="card">
@@ -619,6 +640,19 @@
   <h1 class="display">Game over!</h1>
   <div class="years" id="rYears"></div>
   <div class="card" id="rMine"></div>
+  <div class="card" style="text-align:left;" id="rChartCard">
+    <h2>Your money over time</h2>
+    <div class="htotal" id="rTotal"></div>
+    <p class="muted" style="margin:0 0 6px;font-size:13px;">Total assets and how much you had in each kind of investment. Drag across the chart to see the numbers.</p>
+    <div id="rChart" class="hchart"></div>
+    <div id="rLegend" class="hlegend"></div>
+  </div>
+  <div class="card" style="text-align:left;" id="rCompareCard">
+    <h2>Total assets: everyone</h2>
+    <p class="muted" style="margin:0 0 6px;font-size:13px;">Each player's total assets over the game. The top 5 and you are in color.</p>
+    <div id="rCompare" class="hchart"></div>
+    <div id="rCompareLegend" class="hlegend"></div>
+  </div>
   <div class="card"><h2>Final leaderboard</h2><ol class="lb" id="rBoard"></ol></div>
   <div class="card" style="text-align:left;" id="rAllCard">
     <h2>Everyone's portfolios</h2>
@@ -1138,9 +1172,9 @@ let fitKey = '', fitZoom = 1;
 function fitToScreen(force = false){
   const play = $('play');
   const on = !play.classList.contains('hidden') && innerWidth >= 700;
-  const key = [innerWidth, innerHeight, $('invGrid').children.length, (S.data?.me?.bills || []).length,
+  const key = [innerWidth, innerHeight, $('invGrid').children.length, $('stockGrid').children.length, $('invGrid2').children.length, (S.data?.me?.bills || []).length,
     !$('hostBar').classList.contains('hidden'), !$('pPaused').classList.contains('hidden')].join('|');
-  if (!on) { if (fitZoom !== 1) { document.body.style.zoom = ''; fitZoom = 1; } $('invGrid').style.gridTemplateColumns = ''; fitKey = ''; return; }
+  if (!on) { if (fitZoom !== 1) { document.body.style.zoom = ''; fitZoom = 1; } $('invGrid').style.gridTemplateColumns = ''; $('stockGrid').style.gridTemplateColumns = ''; $('invGrid2').style.gridTemplateColumns = ''; fitKey = ''; return; }
   if (!force && key === fitKey) return;
   fitKey = key;
   const grid = $('invGrid');
@@ -1155,12 +1189,14 @@ function fitToScreen(force = false){
   const best = { z: 1, cols: '' };
   for (const cols of ['', 4, 5, 6, 7]) {
     grid.style.gridTemplateColumns = cols ? `repeat(${cols}, minmax(0, 1fr))` : '';
+    $('stockGrid').style.gridTemplateColumns = $('invGrid2').style.gridTemplateColumns = grid.style.gridTemplateColumns;
     if (!fits(1)) continue;
     let lo = 1, hi = 2.4;
     for (let i = 0; i < 9; i++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
     if (lo > best.z + 0.005) { best.z = lo; best.cols = cols; }
   }
   grid.style.gridTemplateColumns = best.cols ? `repeat(${best.cols}, minmax(0, 1fr))` : '';
+  $('stockGrid').style.gridTemplateColumns = $('invGrid2').style.gridTemplateColumns = grid.style.gridTemplateColumns;
   fitZoom = Math.floor(best.z * 100) / 100;
   document.body.style.zoom = fitZoom;
 }
@@ -1234,13 +1270,27 @@ function renderPlay(){
   syncQty();
   if ($('tickerClose').classList.contains('hidden')) resetTicker();
   // Bills waiting to be paid.
-  patchList($('billsBar'), (me.bills || []).map((b) => ({
+  // Oldest bill in full; the rest folded into one line so they can't push
+  // the game off the screen.
+  const allBills = me.bills || [];
+  const billRows = allBills.slice(0, 1).map((b) => ({
     key: 'bill' + b.id, cls: 'bill',
     html: b.overdue
       ? `<span>🔥 <b>${esc(b.title)}</b> <b class="down">OVERDUE</b> · now ${money(b.amount)} <s>${money(b.original)}</s><br><small>You haven't paid this yet, so it's charging ${b.apr}% interest (the average credit card rate) every month. ${me.cash < b.amount ? 'Withdraw savings or sell something, then pay.' : 'Pay it now. No buying until you do.'}</small></span>`
       : `<span>😬 <b>${esc(b.title)}</b> ${money(b.amount)} · ${b.dueIn <= 1 ? '<b class="down">due this month</b>' : `due in ${b.dueIn} months`}<br><small>${me.cash < b.amount ? 'Not enough cash: withdraw savings or sell something, then pay.' : 'Pay it before you can buy anything.'} If it's not paid by the due date, it starts charging credit card interest.</small></span>`,
     actions: `<button class="qbtn buy" data-paybill="${b.id}" ${running && me.cash >= b.amount ? '' : 'disabled'}>Pay</button>`,
-  })));
+  }));
+  if (allBills.length > 1) {
+    const rest = allBills.slice(1);
+    const restTotal = rest.reduce((t, b) => t + b.amount, 0);
+    const allTotal = allBills.reduce((t, b) => t + b.amount, 0);
+    billRows.push({
+      key: 'billmore', cls: 'bill',
+      html: `<span>➕ <b>${rest.length} more unpaid bill${rest.length === 1 ? '' : 's'}</b> · ${money(restTotal)}${rest.some((b) => b.overdue) ? ' <b class="down">(some overdue)</b>' : ''}</span>`,
+      actions: `<button class="qbtn buy" data-payall ${running && me.cash >= allTotal ? '' : 'disabled'} title="${money(allTotal)} for all ${allBills.length}">Pay all</button>`,
+    });
+  }
+  patchList($('billsBar'), billRows);
 
   const assets = Object.fromEntries((d.market?.assets || []).map((a) => [a.id, a]));
   // No buying while a bill is open — players must pay it (selling is fine).
@@ -1341,7 +1391,13 @@ function renderPlay(){
   // Color-code by kind of product so stocks stand out from everything else.
   const CAT = { savings: 'safe', cd: 'safe', bonds: 'safe', index: 'fund', realestate: 'fund', gold: 'fund', stocks: 'stock', roulette: 'gamble' };
   for (const c of cards) c.cls += ' cat-' + (CAT[c.key] || 'stock');
-  patchList($('invGrid'), cards);
+  // Individual stocks get a row of their own.
+  // Row 1: savings & safe stuff; row 2: individual stocks; row 3: the rest.
+  const isStockCard = (c) => !CAT[c.key] || c.key === 'stocks';
+  const TOP = new Set(['savings', 'cd', 'index', 'bonds']);
+  patchList($('invGrid'), cards.filter((c) => TOP.has(c.key)));
+  patchList($('stockGrid'), cards.filter(isStockCard));
+  patchList($('invGrid2'), cards.filter((c) => !TOP.has(c.key) && !isStockCard(c)));
   syncBondCard(d, canBuy);
   syncRoulette(d, canBuy);
 
@@ -1605,6 +1661,8 @@ function renderResults(){
   } else {
     $('rMine').classList.add('hidden');
   }
+  renderHistoryChart(d.history, rv.startYear);
+  renderCompareChart(d.compare, rv.startYear, d.me?.id);
   $('rBoard').innerHTML = boardHtml(board);
   $('rAll').innerHTML = board.map((p, i) => `<details class="pf"${d.me?.id === p.id || i < 3 ? ' open' : ''}>
       <summary><span class="rank">${['🥇','🥈','🥉'][i] || '#' + (i + 1)}</span> <b>${esc(p.name)}</b><span class="pfnw">${money(p.netWorth)}</span></summary>
@@ -1617,12 +1675,100 @@ function renderResults(){
   $('rBench').innerHTML = `<p class="muted" style="margin:0 0 8px;font-size:14px;">All ${money(rv.contributed)} of paychecks, invested the day they arrived (no surprise bills):</p>` +
     rows.map(([label, v]) => `<div class="bench"><div class="bl">${label}</div><div class="bt"><div style="width:${(v / max * 100).toFixed(1)}%"></div></div><div class="bv">${money(v)}</div></div>`).join('') +
     (d.me ? `<div class="bench"><div class="bl"><b>You</b></div><div class="bt"><div style="width:${Math.max(0, d.me.netWorth / max * 100).toFixed(1)}%;background:var(--up);"></div></div><div class="bv">${money(d.me.netWorth)}</div></div>` : '');
-  $('rTimeline').innerHTML = (rv.timeline || []).map((t) => `<li><div class="when">${esc(t.date)}</div><div>${esc(t.text)}</div></li>`).join('');
+  $('rTimeline').innerHTML = (rv.timeline || []).map((t) => `<li><div class="when">${esc(t.date)}</div><div><b>${esc(t.text)}</b></div>${t.game ? `<div class="muted" style="font-size:12.5px;">In the game: “${esc(t.game)}”</div>` : ''}</li>`).join('');
   $('rTimelineCard').classList.toggle('hidden', !(rv.timeline || []).length);
   $('rInflation').textContent = `Prices also rose over ${rv.endYear === rv.startYear ? 'that year' : `those ${rv.endYear - rv.startYear + 1} years`}: something that cost $100 in ${rv.startYear} cost about ${money(100 * rv.inflation)} by ${rv.endYear}. That's why money sitting in your pocket slowly loses value.`;
   const stocks = [...rv.stocks].sort((a, b) => b.change - a.change);
   $('rStocksCard').classList.toggle('hidden', !stocks.length);
   $('rStocks').innerHTML = stocks.map((s) => `<tr><td>${esc(s.name)}</td><td>was <b>${esc(s.real)}</b></td><td class="${s.change >= 0 ? 'up' : 'down'}">${pct(s.change)}</td></tr>`).join('');
+}
+
+// ---------- results charts ----------
+// Colors validated (scripts/validate_palette.js, dark, surface #2b3f31).
+const HSERIES = [
+  { key: 'cash', label: 'Pocket cash', color: '#9aa39a' },
+  { key: 'savings', label: 'Savings', color: '#199e70' },
+  { key: 'safe', label: 'CDs & bonds', color: '#9085e9' },
+  { key: 'index', label: 'Index fund', color: '#d95926' },
+  { key: 'stocks', label: 'Stocks', color: '#3987e5' },
+  { key: 'realestate', label: 'Real estate', color: '#d55181' },
+  { key: 'gold', label: 'Gold', color: '#c98500' },
+  { key: 'total', label: 'Total assets', color: '#f3ecd6', width: 3.5 },
+];
+const PLAYER_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181'];
+const shortMoney = (n) => (Math.abs(n) >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : Math.abs(n) >= 1e3 ? `$${Math.round(n / 1e3)}K` : `$${Math.round(n)}`);
+const monthName = (m, startYear) => { const k = m > 0 && m % 12 === 0 ? m - 1 : m; return `${MONTHS[k % 12].slice(0, 3)} ${startYear + Math.floor(k / 12)}`; };
+
+// A line chart with a crosshair: lines = [{ label, color, vals, width?, dash?, quiet? }].
+// Quiet lines are drawn thin and gray and left out of the legend/tooltip.
+function lineChart(box, legendBox, months, lines, startYear, onIndex){
+  const W = 640, H = 260, L = 52, R = 12, T = 10, B = 26;
+  const maxM = months[months.length - 1] || 1;
+  const all = lines.flatMap((l) => l.vals);
+  const lo = Math.min(0, ...all), hi = Math.max(1, ...all);
+  const x = (m) => L + (m / maxM) * (W - L - R);
+  const y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => lo + f * (hi - lo));
+  const yrs = []; for (let m = 0; m <= maxM; m += maxM > 120 ? 60 : 24) yrs.push(m);
+  const path = (vals) => vals.map((v, i) => `${i ? 'L' : 'M'}${x(months[i]).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+  const ordered = [...lines.filter((l) => l.quiet), ...lines.filter((l) => !l.quiet)];
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img">
+    ${ticks.map((t) => `<line x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}" class="hgrid"/><text x="${L - 6}" y="${y(t) + 4}" class="hax" text-anchor="end">${shortMoney(t)}</text>`).join('')}
+    ${yrs.map((m) => `<text x="${x(m)}" y="${H - 6}" class="hax" text-anchor="${m === maxM ? 'end' : 'middle'}">${startYear + Math.floor((m === maxM && m % 12 === 0 ? m - 1 : m) / 12)}</text>`).join('')}
+    ${ordered.map((l) => `<path d="${path(l.vals)}" fill="none" stroke="${l.quiet ? '#5d6e60' : l.color}" stroke-width="${l.quiet ? 1.2 : l.width || 2}" ${l.dash ? 'stroke-dasharray="6 4"' : ''} stroke-linejoin="round" stroke-linecap="round"/>`).join('')}
+    <line class="hcross" y1="${T}" y2="${H - B}" x1="-10" x2="-10"/>
+  </svg><div class="htip hidden"></div>`;
+  const named = lines.filter((l) => !l.quiet);
+  const legend = (i) => named.map((l) => `<span class="hl"><i style="background:${l.color};${l.dash ? 'height:3px;border-radius:0;' : ''}"></i>${esc(l.label)} <b>${money(l.vals[i])}</b></span>`).join('');
+  legendBox.innerHTML = legend(months.length - 1);
+  onIndex?.(months.length - 1);
+  const svg = box.querySelector('svg'), cross = box.querySelector('.hcross'), tip = box.querySelector('.htip');
+  const move = (ev) => {
+    const pt = svg.getBoundingClientRect();
+    const px = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - pt.left) / pt.width * W;
+    const m = Math.max(0, Math.min(maxM, ((px - L) / (W - L - R)) * maxM));
+    let i = 0; while (i < months.length - 1 && months[i + 1] <= m) i++;
+    if (i < months.length - 1 && m - months[i] > months[i + 1] - m) i++;
+    const cx = x(months[i]);
+    cross.setAttribute('x1', cx); cross.setAttribute('x2', cx);
+    tip.classList.remove('hidden');
+    const rows = [...named].sort((a, b) => b.vals[i] - a.vals[i]);
+    tip.innerHTML = `<b>${monthName(months[i], startYear)}</b>` + rows.map((l) => `<div><i style="background:${l.color}"></i>${esc(l.label)}<span>${money(l.vals[i])}</span></div>`).join('');
+    const left = (cx / W) * 100;
+    tip.style.left = left > 55 ? '' : `calc(${left}% + 10px)`;
+    tip.style.right = left > 55 ? `calc(${100 - left}% + 10px)` : '';
+    legendBox.innerHTML = legend(i);
+    onIndex?.(i);
+  };
+  const leave = () => { tip.classList.add('hidden'); cross.setAttribute('x1', -10); cross.setAttribute('x2', -10); legendBox.innerHTML = legend(months.length - 1); onIndex?.(months.length - 1); };
+  svg.addEventListener('pointermove', move);
+  svg.addEventListener('touchmove', move, { passive: true });
+  svg.addEventListener('pointerleave', leave);
+  svg.addEventListener('touchend', leave);
+}
+
+function renderHistoryChart(h, startYear){
+  const card = $('rChartCard');
+  if (!h || !h.months?.length) { card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+  const lines = HSERIES.filter((sr) => h.series[sr.key]?.some((v) => v !== 0)).map((sr) => ({ ...sr, vals: h.series[sr.key] }));
+  lineChart($('rChart'), $('rLegend'), h.months, lines, startYear, (i) => {
+    $('rTotal').innerHTML = `<span class="muted">Total assets · ${monthName(h.months[i], startYear)}</span><b>${money(h.series.total[i])}</b>`;
+  });
+}
+
+function renderCompareChart(c, startYear, meId){
+  const card = $('rCompareCard');
+  if (!c || !c.months?.length || c.players.length < 2) { card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+  const last = c.months.length - 1;
+  const ranked = [...c.players].sort((a, b) => b.total[last] - a.total[last]);
+  // Top 5 get colors; you always stand out; everyone else is a thin gray line.
+  const lines = ranked.map((p, r) => r < PLAYER_COLORS.length
+    ? { label: p.id === meId ? `${p.name} (you)` : p.name, color: PLAYER_COLORS[r], vals: p.total, width: p.id === meId ? 3.5 : 2 }
+    : p.id === meId ? { label: `${p.name} (you)`, color: '#f3ecd6', vals: p.total, width: 3, dash: true }
+    : { label: p.name, color: '#5d6e60', vals: p.total, quiet: true });
+  lineChart($('rCompare'), $('rCompareLegend'), c.months, lines, startYear);
 }
 
 // What a player ended up holding, with real company names revealed.
@@ -1734,7 +1880,7 @@ $('payDebtBtn').addEventListener('click', async () => {
 
 document.addEventListener('click', async (e) => {
   if (e.target.closest('input')) return; // typing in a box isn't a tap on its card
-  const t = e.target.closest('[data-alertpay],[data-alertlater],[data-rl],[data-spin],[data-sq],[data-term],[data-bondmax],[data-bondclear],[data-bondbuy],[data-flip],[data-ready],[data-opengate],[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
+  const t = e.target.closest('[data-payall],[data-alertpay],[data-alertlater],[data-rl],[data-spin],[data-sq],[data-term],[data-bondmax],[data-bondclear],[data-bondbuy],[data-flip],[data-ready],[data-opengate],[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
   if (!t) { if (e.target === $('overlay') && S.sheet?.type !== 'gate') closeSheet(); return; }
   if (t.dataset.go) { show(t.dataset.go); return; }
   if (t.dataset.term) { S.bondTerm = t.dataset.term; syncBondCard(S.data, S.data.room.status === 'running' && !(S.data.me.bills || []).length); return; }
@@ -1748,6 +1894,16 @@ document.addEventListener('click', async (e) => {
     return;
   }
   if ('alertlater' in t.dataset) { nextAlert(); return; }
+  if ('payall' in t.dataset) {
+    t.disabled = true;
+    let paid = 0, total = 0;
+    for (const b of [...(S.data.me.bills || [])]) {
+      if (await doTrade('bill', 'pay', null, String(b.id))) { paid++; total += b.amount; } else break;
+    }
+    toast(paid ? `✅ Paid ${paid} bill${paid === 1 ? '' : 's'}: ${money(total)}` : (S.lastError || 'Could not pay.'), paid ? 'good' : 'bad', 3000);
+    renderPlay();
+    return;
+  }
   if (t.dataset.alertpay) {
     t.disabled = true;
     const bill = S.data.me.bills.find((b) => String(b.id) === t.dataset.alertpay);

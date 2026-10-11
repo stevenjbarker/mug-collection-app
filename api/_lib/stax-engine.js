@@ -78,49 +78,52 @@ const WINDFALLS = [
   { title: 'Grandma sent a birthday check.', amount: 500 },
 ];
 
-// Real market news, keyed by calendar month. Written so they don't give the year away.
+// Real market news, keyed by calendar month: [what players see during the
+// game, what really happened]. The in-game line says what's going on in the
+// economy without naming the event, so it doesn't give the year away; the
+// real story is revealed with the dates at the end.
 const HEADLINES = {
-  '1986-02': 'Oil prices collapse — gas is suddenly cheap.',
-  '1987-08': 'Stocks keep hitting record highs. Everyone feels rich.',
-  '1987-10': 'BLACK MONDAY: stocks just fell 22% in a single day, the worst day in market history.',
-  '1987-12': 'After the crash, some investors sold everything. Others quietly kept buying.',
-  '1989-11': 'The Berlin Wall falls.',
-  '1990-08': 'War in the Middle East sends oil prices soaring. Stocks slide.',
-  '1991-03': 'The war ends quickly and stocks rally.',
-  '1994-02': 'The Federal Reserve surprises everyone by raising interest rates. Bond prices drop.',
-  '1995-08': 'A web browser company goes public and its stock doubles on day one. Internet mania begins.',
-  '1996-12': 'The Fed chairman warns of "irrational exuberance" in stock prices.',
-  '1997-10': 'A currency crisis in Asia rattles markets worldwide.',
-  '1998-09': 'Russia defaults on its debt and a famous hedge fund nearly collapses.',
-  '1999-12': 'Tech stocks are on fire. Everyone\'s neighbor is day-trading internet stocks.',
-  '2000-04': 'Tech stocks are cracking. Some internet darlings are down 50% in weeks.',
-  '2001-04': 'Dot-com companies are going bankrupt one after another.',
-  '2001-09': 'Terrorist attacks close the stock market for almost a week. Stocks plunge when it reopens.',
-  '2001-12': 'A giant energy company collapses in an accounting scandal.',
-  '2002-07': 'Another huge accounting fraud. Investors are losing trust in big companies.',
-  '2002-10': 'Stocks are down nearly half from their peak. Many investors have given up.',
-  '2003-03': 'War begins in Iraq.',
-  '2005-08': 'A massive hurricane devastates the Gulf Coast.',
-  '2006-06': 'Home prices are soaring. Banks are lending to almost anyone, sometimes with no money down.',
-  '2007-08': 'Banks are getting nervous about risky home loans.',
-  '2008-03': 'A major investment bank nearly fails and is sold for pennies on the dollar.',
-  '2008-09': 'WALL STREET PANIC: a 158-year-old investment bank goes bankrupt and a giant insurer needs a government rescue.',
-  '2008-10': 'Stocks are in free fall. Congress passes a $700 billion bank rescue.',
-  '2009-03': 'Unemployment is soaring. Stocks are down more than 50% from their peak.',
-  '2010-05': '"Flash crash": stocks plunge nearly 10% in minutes, then bounce back.',
-  '2011-08': 'The U.S. government\'s credit rating is downgraded for the first time ever.',
-  '2013-06': 'Gold prices are crashing.',
-  '2015-08': 'Worries about China\'s economy rattle markets.',
-  '2016-06': 'Britain votes to leave the European Union. Markets wobble.',
-  '2018-12': 'Stocks are having their worst December in decades.',
-  '2020-02': 'A new virus is spreading around the world.',
-  '2020-03': 'PANDEMIC: cities shut down and stocks fall over 30% in a month.',
-  '2020-08': 'Stocks are back to record highs even as the pandemic continues.',
-  '2021-11': 'Prices are rising fast — inflation is the highest in 40 years.',
-  '2022-06': 'The Fed raises interest rates sharply to fight inflation. Stocks AND bonds are falling.',
-  '2023-03': 'A big tech-focused bank fails in two days.',
-  '2023-06': 'Artificial-intelligence excitement sends chip stocks soaring.',
-  '2025-04': 'Sudden new tariffs shake markets.',
+  '1986-02': ['Energy prices are dropping fast. Gas is getting cheaper.', 'Oil prices collapsed — gas was suddenly cheap.'],
+  '1987-08': ['Stocks keep hitting record highs. Everyone feels rich.', 'Stocks kept hitting record highs before the crash.'],
+  '1987-10': ['Stocks just had a terrible month. Many investors are panicking.', 'Black Monday: stocks fell 22% in a single day, the worst day in market history.'],
+  '1987-12': ['After a big drop, some investors sold everything. Others quietly kept buying.', 'After the crash, some investors sold everything. Others kept buying.'],
+  '1989-11': ['Big changes overseas have people hopeful about growing trade.', 'The Berlin Wall fell.'],
+  '1990-08': ['Oil prices are soaring because of trouble overseas. Stocks are sliding.', 'Iraq invaded Kuwait. Oil prices soared and stocks slid.'],
+  '1991-03': ['Stocks are rallying as worries fade.', 'The Gulf War ended quickly and stocks rallied.'],
+  '1994-02': ['The central bank surprised everyone by raising interest rates. Bond prices dropped.', 'The Federal Reserve surprised markets by raising rates; bonds had their worst year in decades.'],
+  '1995-08': ['A hot new tech company doubled on its first day of trading. Investors are excited.', "Netscape's stock doubled on its first day — the internet boom began."],
+  '1996-12': ['A top official warns that stock prices may be too high.', 'Fed Chairman Alan Greenspan warned of "irrational exuberance."'],
+  '1997-10': ['A financial crisis overseas is rattling markets.', 'The Asian financial crisis rattled markets worldwide.'],
+  '1998-09': ["A foreign government can't pay its debts, and a big investment fund nearly collapses.", 'Russia defaulted and the hedge fund Long-Term Capital Management nearly collapsed.'],
+  '1999-12': ['Tech stocks are on fire. People are quitting jobs to trade stocks.', 'The dot-com bubble neared its peak.'],
+  '2000-04': ['Tech stocks are cracking. Some popular companies are down 50% in weeks.', 'The dot-com bubble burst.'],
+  '2001-04': ['Young tech companies are going out of business one after another.', 'Dot-com companies went bankrupt one after another.'],
+  '2001-09': ['A sudden crisis sent stocks tumbling this month.', 'The September 11 attacks closed the stock market for almost a week.'],
+  '2001-12': ['A giant company collapsed in an accounting scandal.', 'Enron collapsed in an accounting scandal.'],
+  '2002-07': ['Another accounting scandal. Investors are losing trust in big companies.', 'WorldCom collapsed in another huge accounting fraud.'],
+  '2002-10': ['Stocks are down nearly half from their peak. Many investors have given up.', 'Stocks hit bottom after a nearly 50% fall.'],
+  '2003-03': ['Uncertainty overseas has investors nervous.', 'The Iraq War began.'],
+  '2005-08': ['A natural disaster hit a major region. Gas prices spiked.', 'Hurricane Katrina devastated the Gulf Coast.'],
+  '2006-06': ['Home prices are soaring. Banks are lending to almost anyone.', 'The housing bubble peaked; banks were lending with almost no money down.'],
+  '2007-08': ['Banks are getting nervous about risky home loans.', 'The subprime mortgage crisis began.'],
+  '2008-03': ['A major investment bank nearly failed and was sold for pennies on the dollar.', 'Bear Stearns nearly failed and was sold to JPMorgan for pennies.'],
+  '2008-09': ['WALL STREET PANIC: a famous bank went bankrupt and a giant insurer needed a government rescue.', 'Lehman Brothers went bankrupt and AIG needed a government rescue.'],
+  '2008-10': ['Stocks are in free fall. The government is spending hundreds of billions to rescue banks.', 'Congress passed the $700 billion bank bailout (TARP).'],
+  '2009-03': ['Unemployment is soaring. Stocks are down more than half from their peak.', 'The Great Recession: stocks bottomed after a 57% fall.'],
+  '2010-05': ['Stocks plunged nearly 10% in minutes one afternoon, then bounced back.', 'The "Flash Crash."'],
+  '2011-08': ["The government's credit rating was downgraded. Markets are shaky.", 'The U.S. credit rating was downgraded for the first time ever.'],
+  '2013-06': ['Gold prices are crashing.', 'Gold prices crashed.'],
+  '2015-08': ['Worries about a slowing economy overseas are rattling markets.', "Fears about China's economy rattled markets."],
+  '2016-06': ['A surprise vote overseas has markets wobbling.', 'Britain voted to leave the European Union (Brexit).'],
+  '2018-12': ['Stocks are having a rough month. Investors worry interest rates are rising too fast.', 'Stocks had their worst December since the Great Depression.'],
+  '2020-02': ['A health scare overseas has investors watching closely.', 'COVID-19 began spreading around the world.'],
+  '2020-03': ['Businesses are shutting down and stocks fell over 30% in a month.', 'The COVID-19 pandemic shut down cities; stocks fell over 30% in a month.'],
+  '2020-08': ['Stocks are back to record highs even though the economy is still hurting.', 'Stocks recovered to record highs during the pandemic.'],
+  '2021-11': ['Prices are rising fast. Inflation is the highest in decades.', 'Inflation hit a 40-year high.'],
+  '2022-06': ['The central bank is raising interest rates sharply to fight inflation. Stocks AND bonds are falling.', 'The Fed raised rates sharply; stocks and bonds both fell.'],
+  '2023-03': ['A big bank failed in just two days.', 'Silicon Valley Bank failed in two days.'],
+  '2023-06': ['Excitement about a new technology is sending chip stocks soaring.', 'The AI boom sent chip stocks soaring.'],
+  '2025-04': ['Sudden new taxes on imports are shaking markets.', 'Sweeping new tariffs shook markets.'],
 };
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -583,7 +586,7 @@ export function news(room, month, player) {
   for (let m = 1; m <= month; m++) {
     const c = m - 1;
     const key = `${room.startYear + Math.floor(c / 12)}-${String((c % 12) + 1).padStart(2, '0')}`;
-    if (HEADLINES[key]) out.push({ month: m, kind: 'news', text: HEADLINES[key], at: c });
+    if (HEADLINES[key]) out.push({ month: m, kind: 'news', text: HEADLINES[key][0], at: c });
   }
   for (const s of roomStocks(room)) {
     const lm = s.listed - k0;
@@ -619,7 +622,7 @@ export function reveal(room, month = GAME_MONTHS) {
   for (let c = 0; c < end; c++) {
     const y = room.startYear + Math.floor(c / 12);
     const key = `${y}-${String((c % 12) + 1).padStart(2, '0')}`;
-    if (HEADLINES[key]) timeline.push({ date: `${MONTH_NAMES_LONG[c % 12]} ${y}`, text: HEADLINES[key] });
+    if (HEADLINES[key]) timeline.push({ date: `${MONTH_NAMES_LONG[c % 12]} ${y}`, text: HEADLINES[key][1], game: HEADLINES[key][0] });
   }
   return {
     startYear: room.startYear,
@@ -636,6 +639,51 @@ export function reveal(room, month = GAME_MONTHS) {
     stocks,
     timeline,
   };
+}
+
+// ---------- history for the end-of-game chart ----------
+
+// One entry per successful trade, enough to replay it exactly. Roulette
+// stores the money won or lost, since the spin can't be repeated.
+export function tradeLogEntry(month, req, before, after) {
+  const e = { m: month, a: req.asset, s: req.side };
+  if (req.amount != null) e.amt = req.amount;
+  if (req.lot != null) e.lot = req.lot;
+  if (req.shares != null) e.sh = req.shares;
+  if (req.asset === 'roulette') e.d = round2(after.cashDelta - before.cashDelta);
+  return e;
+}
+
+const CHART_GROUPS = {
+  savings: 'savings', cd: 'safe', b1: 'safe', b3: 'safe', b12: 'safe',
+  index: 'index', realestate: 'realestate', gold: 'gold',
+};
+
+// Rebuilds a player's balances month by month by replaying their trades.
+export function replayHistory(room, playerId, log, end, step = 3) {
+  // Same id as the real player, so they get the same surprise bills.
+  let p = newPlayer(playerId, '', '');
+  let i = 0;
+  const months = [];
+  const series = { cash: [], savings: [], safe: [], index: [], stocks: [], realestate: [], gold: [], total: [], net: [] };
+  for (let m = 0; m <= end; m++) {
+    while (i < log.length && log[i].m <= m) {
+      const e = log[i++];
+      try {
+        if (e.a === 'roulette') { p = settle(room, p, e.m); p.cashDelta = round2(p.cashDelta + e.d); }
+        else p = trade(room, p, e.m, { asset: e.a, side: e.s, amount: e.amt, lot: e.lot, shares: e.sh });
+      } catch { /* a trade that can't be repeated is skipped */ }
+    }
+    if (m % step && m !== end) continue;
+    const sm = summarize(room, p, m);
+    const row = { cash: sm.cash, savings: 0, safe: 0, index: 0, stocks: 0, realestate: 0, gold: 0 };
+    for (const [k, h] of Object.entries(sm.holdings)) row[CHART_GROUPS[k] || 'stocks'] += h.value;
+    months.push(m);
+    for (const k of Object.keys(row)) series[k].push(Math.round(row[k]));
+    series.total.push(Math.round(Object.values(row).reduce((a, b) => a + b, 0)));
+    series.net.push(Math.round(sm.netWorth));
+  }
+  return { months, series };
 }
 
 export const REAL_NAMES = {

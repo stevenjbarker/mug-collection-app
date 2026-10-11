@@ -144,4 +144,35 @@ export async function removePlayer(code, id) {
   else await redis('HDEL', playersKey(code), id);
 }
 
+// ---------- trade log (for the end-of-game chart) ----------
+// Kept in its own list per player so live updates stay small.
+const tradesKey = (code, id) => `stax:t:${code}:${id}`;
+
+export async function appendTrade(code, id, entry) {
+  const raw = JSON.stringify(entry);
+  if (USE_MEMORY) {
+    const k = tradesKey(code, id);
+    (mem.trades ||= new Map()).set(k, [...(mem.trades.get(k) || []), raw]);
+    return;
+  }
+  await pipeline([['RPUSH', tradesKey(code, id), raw], ['EXPIRE', tradesKey(code, id), TTL]]);
+}
+
+export async function getTrades(code, id) {
+  const list = USE_MEMORY ? (mem.trades?.get(tradesKey(code, id)) || []) : (await redis('LRANGE', tradesKey(code, id), 0, -1)) || [];
+  return list.map((r) => JSON.parse(r));
+}
+
+// End-of-game history for the whole room, computed once and kept.
+const historyKey = (code) => `stax:h:${code}`;
+export async function getRoomHistory(code) {
+  const raw = USE_MEMORY ? mem.history?.get(code) : await redis('GET', historyKey(code));
+  return raw ? JSON.parse(raw) : null;
+}
+export async function saveRoomHistory(code, data) {
+  const raw = JSON.stringify(data);
+  if (USE_MEMORY) { (mem.history ||= new Map()).set(code, raw); return; }
+  await redis('SET', historyKey(code), raw, 'EX', TTL);
+}
+
 export const storageMode = USE_MEMORY ? 'memory' : 'redis';
