@@ -1466,14 +1466,24 @@ function renderSheet(fresh = false){
         ${bonds ? '<p class="lesson">You can choose a 1-month, 3-month or 1-year bond.</p>' : ''}
         <div id="gateStatus" class="muted" style="font-size:14px;margin:6px 0 12px;"></div>
         <div class="actions"><button class="btn" data-ready>I'm ready</button></div>
-        ${S.hostKey ? '<div class="actions" style="margin-top:8px;"><button class="btn ghost" data-skipgate>Host: start anyway</button></div>' : ''}`;
+        <div class="actions hidden" id="gateHostRow" style="margin-top:8px;"><button class="btn ghost" data-skipgate>Host: start now without waiting</button></div>`;
     }
     $('gateStatus').innerHTML = st.meReady
       ? `✅ You're ready. ${st.waiting.length ? `Waiting on ${st.waiting.map((p) => esc(p.name)).join(', ')}…` : 'Starting…'}`
       : `${st.ready.length} of ${st.total} players ready.`;
     const btn = el.querySelector('[data-ready]');
-    btn.disabled = st.meReady || S.busy;
-    btn.textContent = st.meReady ? 'Waiting for everyone…' : "I'm ready";
+    const isHost = !!S.hostKey;
+    if (isHost && st.meReady && st.waiting.length) {
+      // The host never gets stuck: their main button starts the game.
+      btn.disabled = S.busy;
+      btn.textContent = `Start now without ${st.waiting.length === 1 ? esc(st.waiting[0].name) : `${st.waiting.length} players`}`;
+      btn.dataset.skip = '1';
+    } else {
+      btn.disabled = st.meReady || S.busy;
+      btn.textContent = st.meReady ? 'Waiting for everyone…' : "I'm ready";
+      delete btn.dataset.skip;
+    }
+    $('gateHostRow').classList.toggle('hidden', !isHost || st.meReady);
     return;
   }
   if (sh.type === 'lesson') {
@@ -1960,6 +1970,7 @@ document.addEventListener('click', async (e) => {
     return;
   }
   if ('opengate' in t.dataset) { openSheet('gate', String(S.data.room.gate.month)); return; }
+  if ('ready' in t.dataset && t.dataset.skip) { t.disabled = true; await hostOp('resume'); closeSheet(); return; }
   if ('ready' in t.dataset) {
     t.disabled = true;
     const r = await api('POST', { action: 'ready', code: S.code, player: S.player, token: S.token }).catch(() => ({ ok: false, data: {} }));
