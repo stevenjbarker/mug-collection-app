@@ -138,6 +138,16 @@ export const POST = handle(async (request) => {
   try { body = await request.json(); } catch {}
   const now = Date.now();
 
+  if (body.action === 'clientError') {
+    // A drawing problem on a player's device (see reportError in the page).
+    const clip = (v, n) => String(v ?? '').slice(0, n);
+    console.error('[stax client error]', JSON.stringify({
+      code: clip(body.code, 8), where: clip(body.where, 60), message: clip(body.message, 300),
+      month: Number(body.month) || null, ua: clip(body.ua, 200), stack: clip(body.stack, 1500),
+    }));
+    return json({ ok: true });
+  }
+
   if (body.action === 'create') {
     const typed = body.passcode != null ? String(body.passcode) : null;
     if (!canHost(request, typed)) {

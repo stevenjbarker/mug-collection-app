@@ -827,8 +827,12 @@ function patchList(container, items, tag = 'div'){
     if (it.open) el.dataset.open = it.open; else delete el.dataset.open;
     if (it.data) for (const [k, v] of Object.entries(it.data)) el.dataset[k] = v;
     if (it.actions == null) {
+      // Switching from the buttons layout back to plain: forget the old parts
+      // so they're rebuilt (writing into detached parts froze cards before).
+      if (el._body) { el._body = el._acts = el._corner = el._sub = null; el._html = el._actHtml = el._cornerHtml = undefined; }
       if (el._html !== it.html) { el.innerHTML = it.html; el._html = it.html; }
     } else {
+      if (el._body && el._body.parentNode !== el) { el._body = null; el._sub = null; el._html = el._actHtml = el._cornerHtml = undefined; }
       // Buttons live in their own box that's only rebuilt when they change,
       // so a tap never lands on a button that was just replaced.
       if (!el._body) {
@@ -932,7 +936,7 @@ async function pollLoop(){
   try {
     await poll();
   } catch (err) {
-    console.error('Stax update failed', err);
+    reportError(err, 'update');
   } finally {
     // Always line up the next update, whatever happened to this one.
     clearTimeout(pollTimer);
@@ -981,7 +985,7 @@ async function poll(){
   if (d.me) S.meV = Math.max(S.meV, d.me.v);
   S.data = d;
   // A drawing problem must never stop the game from updating.
-  try { render(); } catch (err) { console.error('Stax render failed', err); }
+  try { render(); } catch (err) { reportError(err, 'render'); }
 }
 
 function forget(){
@@ -1169,6 +1173,23 @@ function renderAlert(){
     </div></div>`);
 }
 
+// ---------- error reporting ----------
+// Drawing problems on players' devices get sent to the server log (a few
+// per page load) so they can be found and fixed.
+const reportedErrors = new Set();
+function reportError(err, where){
+  console.error('Stax', where, err);
+  const msg = `${where}: ${err?.message || err}`;
+  if (reportedErrors.has(msg) || reportedErrors.size >= 5) return;
+  reportedErrors.add(msg);
+  fetch('/api/stax', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+    action: 'clientError', code: S.code, where, message: String(err?.message || err).slice(0, 300),
+    stack: String(err?.stack || '').slice(0, 1500), month: S.data?.room?.month, ua: navigator.userAgent.slice(0, 200),
+  }) }).catch(() => {});
+}
+window.addEventListener('error', (e) => reportError(e.error || e.message, 'window'));
+window.addEventListener('unhandledrejection', (e) => reportError(e.reason, 'promise'));
+
 // ---------- fill the screen on iPads ----------
 // On tablets and laptops the game is scaled up as far as it can go while
 // still fitting on one screen, so a big iPad Pro gets big, readable cards.
@@ -1302,12 +1323,14 @@ function renderPlay(){
   const canBuy = running && !billOpen;
   const off = canBuy ? '' : 'disabled';
   const cards = [];
-  for (const id of ORDER) {
+  // Each card is built on its own: if one fails, it gets a simple fallback
+  // and the rest of the dashboard still updates.
+  const buildCards = (id) => {
     const inv = INV[id];
     const head = (icon, name = inv.name, sub = inv.risk) => `<div class="head"><span class="icon">${icon}</span><div><div class="name">${name}</div><div class="risk">${sub}</div></div></div>`;
     if (m < inv.unlock) {
       cards.push({ key: id, cls: 'inv locked', open: null, html: head('🔒') + `<div class="lockmsg">Unlocks in Year ${inv.unlock / 12 + 1}</div>` });
-      continue;
+      return;
     }
     const fresh = m - inv.unlock < 12 && inv.unlock > 0;
     const badge = fresh ? '<span class="new">NEW</span>' : '';
@@ -1339,7 +1362,7 @@ function renderPlay(){
               <div class="sqbtns"><button class="qbtn buy" data-shares="${isMax ? 'max' : q}" data-side="buy" data-asset="${st.id}" ${canBuy && buyN >= 1 && affordable >= (isMax ? 1 : q) ? '' : 'disabled'}>${buyLabel}</button><button class="qbtn sell" data-shares="${isMax ? 'all' : q}" data-side="sell" data-asset="${st.id}" ${running && shares > 0 ? '' : 'disabled'}>${sellLabel}</button></div>`;
           })() });
       }
-      continue;
+      return;
     }
     const a = assets[id];
     const h = me.holdings[id];
@@ -1356,7 +1379,7 @@ function renderPlay(){
         actions: `<div class="rlpicks"><button class="rlp red" data-rl="red">Red</button><button class="rlp black" data-rl="black">Black</button><button class="rlp green" data-rl="0">0</button><button class="rlp green" data-rl="00">00</button></div>
           <div class="rlodds" id="rlOdds"></div>
           <button class="qbtn buy" data-spin>Spin</button>` });
-      continue;
+      return;
     }
     if (id === 'bonds') {
       // One card for all three bond lengths: pick a term, then buy below.
@@ -1368,7 +1391,7 @@ function renderPlay(){
         actions: `<div class="terms">${BOND_TERMS.map((t) => `<button class="term" data-term="${t.id}"><b>${t.n}</b><span>${t.unit}</span></button>`).join('')}</div>
           <div class="apyrow"><span class="apy" id="bondApy"></span><span class="muted" id="bondLock"></span></div>
           <div class="buyrow"><button class="clr" data-bondclear aria-label="Clear">×</button><button class="maxb" data-bondmax>MAX</button><input id="bondAmt" inputmode="decimal" enterkeyhint="done" placeholder="$0.00" aria-label="Amount"><button class="qbtn buy" data-bondbuy>Buy</button></div>` });
-      continue;
+      return;
     }
     if (inv.rate) {
       const next = h ? Math.min(...h.lots.map((l) => l.maturesIn)) : null;
@@ -1382,7 +1405,7 @@ function renderPlay(){
         actions: id === 'cd'
           ? `<button class="qbtn buy" data-quick="buy" data-asset="cd" ${off}>Buy</button><button class="qbtn sell" data-open="cd" ${h ? '' : 'disabled'}>Break…</button>`
           : `<button class="qbtn buy" data-quick="buy" data-asset="${id}" ${off}>Buy</button><button class="qbtn sell" data-quick="sell" data-asset="${id}" ${h && running ? '' : 'disabled'}>Sell</button>` });
-      continue;
+      return;
     }
     const ch = yearChange(a?.history);
     cards.push({ key: id, cls: 'inv', open: id,
@@ -1391,6 +1414,13 @@ function renderPlay(){
       <div class="row"><span class="muted">Past year</span><span class="${ch >= 0 ? 'up' : 'down'}">${ch == null ? '—' : pct(ch)}</span></div>
       ${moneyRows(h)}`,
       actions: `<button class="qbtn buy" data-quick="buy" data-asset="${id}" ${off}>${buyV}</button><button class="qbtn sell" data-quick="sell" data-asset="${id}" ${h && running ? '' : 'disabled'}>${sellV}</button>` });
+  };
+  for (const id of ORDER) {
+    try { buildCards(id); }
+    catch (err) {
+      reportError(err, 'card ' + id);
+      if (id !== 'stocks') cards.push({ key: id, cls: 'inv', open: id, html: `<div class="head"><span class="icon">${INV[id].icon}</span><div><div class="name">${INV[id].name}</div></div></div><div class="lockmsg">Tap to open</div>` });
+    }
   }
   // Color-code by kind of product so stocks stand out from everything else.
   const CAT = { savings: 'safe', cd: 'safe', bonds: 'safe', index: 'fund', realestate: 'fund', gold: 'fund', stocks: 'stock', roulette: 'gamble' };
@@ -1435,7 +1465,8 @@ function renderSheet(fresh = false){
         ${shown.map((id) => `<p class="lesson">${INV[id].lesson}</p>`).join('')}
         ${bonds ? '<p class="lesson">You can choose a 1-month, 3-month or 1-year bond.</p>' : ''}
         <div id="gateStatus" class="muted" style="font-size:14px;margin:6px 0 12px;"></div>
-        <div class="actions"><button class="btn" data-ready>I'm ready</button></div>`;
+        <div class="actions"><button class="btn" data-ready>I'm ready</button></div>
+        ${S.hostKey ? '<div class="actions" style="margin-top:8px;"><button class="btn ghost" data-skipgate>Host: start anyway</button></div>' : ''}`;
     }
     $('gateStatus').innerHTML = st.meReady
       ? `✅ You're ready. ${st.waiting.length ? `Waiting on ${st.waiting.map((p) => esc(p.name)).join(', ')}…` : 'Starting…'}`
@@ -1884,7 +1915,7 @@ $('payDebtBtn').addEventListener('click', async () => {
 
 document.addEventListener('click', async (e) => {
   if (e.target.closest('input')) return; // typing in a box isn't a tap on its card
-  const t = e.target.closest('[data-payall],[data-alertpay],[data-alertlater],[data-rl],[data-spin],[data-sq],[data-term],[data-bondmax],[data-bondclear],[data-bondbuy],[data-flip],[data-ready],[data-opengate],[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
+  const t = e.target.closest('[data-skipgate],[data-payall],[data-alertpay],[data-alertlater],[data-rl],[data-spin],[data-sq],[data-term],[data-bondmax],[data-bondclear],[data-bondbuy],[data-flip],[data-ready],[data-opengate],[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
   if (!t) { if (e.target === $('overlay') && S.sheet?.type !== 'gate') closeSheet(); return; }
   if (t.dataset.go) { show(t.dataset.go); return; }
   if (t.dataset.term) { S.bondTerm = t.dataset.term; syncBondCard(S.data, S.data.room.status === 'running' && !(S.data.me.bills || []).length); return; }
@@ -1898,6 +1929,7 @@ document.addEventListener('click', async (e) => {
     return;
   }
   if ('alertlater' in t.dataset) { nextAlert(); return; }
+  if ('skipgate' in t.dataset) { t.disabled = true; await hostOp('resume'); closeSheet(); return; }
   if ('payall' in t.dataset) {
     t.disabled = true;
     let paid = 0, total = 0;
