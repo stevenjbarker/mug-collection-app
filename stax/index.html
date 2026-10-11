@@ -99,6 +99,40 @@
   .ticker button{background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:inherit;padding:0 2px;}
   .qa{display:flex;gap:6px;margin-top:10px;}
   .stockcard .qa{flex-direction:row;gap:6px;}
+  .bondcard{grid-column:span 2;}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:0 0 10px;}
+  .lg::before{content:'';display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;}
+  .lg.safe::before{background:#6fbf73;} .lg.fund::before{background:var(--gold);} .lg.stock::before{background:#7aa2ff;}
+  .inv.cat-safe{border-top:4px solid #6fbf73;}
+  .inv.cat-fund{border-top:4px solid var(--gold);}
+  .inv.cat-stock{border:1px solid #5b7fd1;border-top:4px solid #7aa2ff;background:linear-gradient(180deg,#26324a,#22304a 60%,#25344d);}
+  .inv.cat-stock:hover{border-color:#9dbbff;}
+  .inv.cat-stock .flipbtn{background:#1c2740;border-color:#5b7fd1;}
+  .inv.cat-stock.flipped{background:#1c2740;}
+  .inv.locked.cat-stock{background:var(--panel);border-color:var(--line);border-top:4px solid #5b7fd1;}
+  .bondcard .qa{flex-direction:column;gap:10px;align-items:stretch;}
+  .terms{display:flex;justify-content:center;gap:14px;}
+  .term{width:68px;height:68px;border-radius:50%;border:none;background:var(--bg2);color:var(--cream);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;}
+  .term b{font-size:22px;} .term span{font-size:12px;color:var(--muted);}
+  .term.on{background:var(--gold);color:var(--ink);box-shadow:0 3px 0 var(--ink);}
+  .term.on span{color:var(--ink);}
+  .apyrow{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px dotted var(--line);padding-bottom:6px;}
+  .apy{font-size:20px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums;}
+  .buyrow{display:flex;align-items:stretch;border:2px solid var(--ink);border-radius:10px;overflow:hidden;background:var(--cream);box-shadow:0 3px 0 var(--ink);}
+  .buyrow button,.buyrow input{border:none;background:transparent;color:var(--ink);font-weight:800;}
+  .buyrow .clr{width:34px;font-size:18px;border-right:1px solid #bdb59c;cursor:pointer;}
+  .buyrow .maxb{padding:0 10px;font-size:13px;cursor:pointer;}
+  .buyrow input{flex:1;min-width:0;text-align:right;font-size:18px;padding:8px;outline:none;font-variant-numeric:tabular-nums;}
+  .buyrow input::placeholder{color:#8f8a78;}
+  .buyrow .qbtn{flex:0 0 70px;border-radius:0;border:none;border-left:1px solid #bdb59c;box-shadow:none;background:var(--gold);}
+  .lots{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:10px 0 2px;}
+  .lots:empty{display:none;}
+  .lotpie{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;width:84px;}
+  .pie{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:conic-gradient(var(--gold) var(--p), var(--bg2) 0);border:2px solid var(--line);}
+  .pie span{background:var(--panel);border-radius:8px;padding:2px 4px;font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;}
+  .lotpie:hover .pie{border-color:var(--gold);}
+  .pielabel{font-size:11px;color:var(--muted);text-align:center;}
   .stockcard .corner{position:absolute;top:8px;right:8px;z-index:2;}
   .inv.stockcard .new{right:40px !important;top:11px !important;}
   .flipbtn{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);background:var(--bg2);color:var(--cream);font-weight:800;font-size:14px;line-height:1;cursor:pointer;padding:0;}
@@ -385,6 +419,7 @@
   </div>
   <div class="play">
     <div>
+      <div class="legend"><span class="lg safe">Safe savings</span><span class="lg fund">Funds &amp; assets</span><span class="lg stock">Individual stocks</span></div>
       <div class="grid" id="invGrid"></div>
     </div>
     <div class="side">
@@ -512,7 +547,9 @@ const INV = {
     lesson: 'Gold pays no interest and no dividends. Its price moves on fear and inflation: people rush to it when they are scared. It can sit still for a decade, then shoot up.' },
 };
 // Dashboard order; 'stocks' expands into one card per company once unlocked.
-const ORDER = ['savings','cd','index','stocks','b1','b3','b12','realestate','gold'];
+INV.bonds = { name: 'Government Bonds', icon: '🏛️', risk: 'Very low risk', unlock: 60, lessonKey: 'bonds', lesson: BOND_LESSON };
+const BOND_TERMS = [{ id: 'b1', n: 1, unit: 'Month' }, { id: 'b3', n: 3, unit: 'Months' }, { id: 'b12', n: 1, unit: 'Year' }];
+const ORDER = ['savings','cd','index','stocks','bonds','realestate','gold'];
 // Savings isn't bought and sold — it's deposited and withdrawn.
 const verbs = (id) => (id === 'savings' ? ['Deposit', 'Withdraw', 'Deposited', 'Withdrew'] : ['Buy', 'Sell', 'Bought', 'Sold']);
 const nameOf = (id) => INV[id]?.name || S.data?.market?.stocks.find((s) => s.id === id)?.name || 'that';
@@ -540,6 +577,7 @@ let S = {
   busy: false,
   flipped: new Set(),   // stock cards turned over to read the description
   picking: null,        // { id, side } while choosing how many shares
+  bondTerm: 'b3',       // term picked on the Government Bonds card
   qty: (() => { try { return localStorage.getItem('stax:qty') || '1000'; } catch { return '1000'; } })(),
 };
 let pollTimer = null, tickTimer = null;
@@ -614,6 +652,7 @@ function patchList(container, items, tag = 'div'){
     existing.delete(it.key);
     if (el.className !== it.cls) el.className = it.cls;
     if (it.open) el.dataset.open = it.open; else delete el.dataset.open;
+    if (it.data) for (const [k, v] of Object.entries(it.data)) el.dataset[k] = v;
     if (it.actions == null) {
       if (el._html !== it.html) { el.innerHTML = it.html; el._html = it.html; }
     } else {
@@ -628,6 +667,11 @@ function patchList(container, items, tag = 'div'){
       }
       if (el._cornerHtml !== (it.corner || '')) { el._corner.innerHTML = it.corner || ''; el._cornerHtml = it.corner || ''; }
       if (el._html !== it.html) { el._body.innerHTML = it.html; el._html = it.html; }
+      // Optional row of keyed items (CD/bond circles) that also stay put.
+      if (it.sub) {
+        if (!el._sub) { el._sub = document.createElement('div'); el._sub.className = 'lots'; el.insertBefore(el._sub, el._acts); }
+        patchList(el._sub, it.sub);
+      } else if (el._sub) { el._sub.remove(); el._sub = null; }
       if (el._actHtml !== it.actions) { el._acts.innerHTML = it.actions; el._actHtml = it.actions; }
     }
     if (container.children[i] !== el) container.insertBefore(el, container.children[i] || null);
@@ -646,6 +690,21 @@ function spark(values, w = 200, h = 46, fill = true, trend = yearChange(values))
   const area = fill ? `<path d="${d} L${w} ${h} L0 ${h} Z" fill="${color}" opacity=".12"/>` : '';
   return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${area}<path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`;
 }
+// One circle per CD or bond: fills up as it gets closer to paying out.
+const TERM_LABEL = { cd: '1 yr CD', b1: '1 mo', b3: '3 mo', b12: '1 yr' };
+const TERM_MONTHS = { cd: 12, b1: 1, b3: 3, b12: 12 };
+function lotPies(lots, running){
+  return lots.map((l) => {
+    const term = TERM_MONTHS[l.kind];
+    const done = Math.max(0, Math.min(1, (term - l.maturesIn) / term));
+    return {
+      key: l.id, cls: 'lotpie', data: { cashout: l.id, kind: l.kind },
+      html: `<div class="pie" style="--p:${(done * 100).toFixed(0)}%"><span>${money(l.value)}</span></div>
+        <div class="pielabel">${TERM_LABEL[l.kind]} · ${l.maturesIn} mo left</div>`,
+    };
+  });
+}
+
 // Balance and profit lines shown on every unlocked card.
 function moneyRows(h, extra = ''){
   const value = h?.value || 0, cost = h?.cost || 0, gain = value - cost;
@@ -827,6 +886,33 @@ function announce(d){
   renderGate(d);
 }
 
+// Parts of the bond card that change without rebuilding its buttons/input.
+function syncBondCard(d, canBuy){
+  const card = document.querySelector('.bondcard');
+  if (!card) return;
+  const a = (d.market?.assets || []).find((x) => x.id === S.bondTerm);
+  card.querySelectorAll('.term').forEach((b) => b.classList.toggle('on', b.dataset.term === S.bondTerm));
+  const t = BOND_TERMS.find((x) => x.id === S.bondTerm);
+  $('bondApy').textContent = a?.rate != null ? `${a.rate.toFixed(2)}% APY` : '';
+  $('bondLock').textContent = `locked for ${t.n} ${t.unit.toLowerCase()}`;
+  card.querySelector('[data-bondbuy]').disabled = !canBuy || S.busy;
+  card.querySelector('[data-bondmax]').disabled = !canBuy;
+  card.dataset.open = S.bondTerm;
+}
+async function buyBond(){
+  const me = S.data?.me;
+  const raw = $('bondAmt').value.replace(/[$,\s]/g, '');
+  const want = Number(raw);
+  if (!(want > 0)) { toast('Type an amount, or tap MAX.', 'bad'); return; }
+  const amount = want >= me.cash - 0.005 ? 'all' : want;
+  const t = BOND_TERMS.find((x) => x.id === S.bondTerm);
+  if (await doTrade(S.bondTerm, 'buy', amount)) {
+    toast(`✅ Bought ${money(amount === 'all' ? me.cash : want)} of ${t.n}-${t.unit.toLowerCase().replace(/s$/, '')} bonds`, 'good', 3000);
+    $('bondAmt').value = '';
+    renderPlay();
+  } else toast(S.lastError || 'Could not buy.', 'bad');
+}
+
 // ---------- unlock pauses ----------
 // When something new unlocks, the game pauses until every player has read
 // about it and pressed Ready.
@@ -944,6 +1030,18 @@ function renderPlay(){
     const a = assets[id];
     const h = me.holdings[id];
     const [buyV, sellV] = verbs(id);
+    if (id === 'bonds') {
+      // One card for all three bond lengths: pick a term, then buy below.
+      const lots = BOND_TERMS.flatMap((t) => (me.holdings[t.id]?.lots || []).map((l) => ({ ...l, kind: t.id })));
+      const total = { value: lots.reduce((x, l) => x + l.value, 0), cost: lots.reduce((x, l) => x + l.amount, 0) };
+      cards.push({ key: id, cls: 'inv bondcard', open: S.bondTerm,
+        html: `${badge}${head(inv.icon)}${moneyRows(lots.length ? total : null)}`,
+        sub: lotPies(lots, running),
+        actions: `<div class="terms">${BOND_TERMS.map((t) => `<button class="term" data-term="${t.id}"><b>${t.n}</b><span>${t.unit}</span></button>`).join('')}</div>
+          <div class="apyrow"><span class="apy" id="bondApy"></span><span class="muted" id="bondLock"></span></div>
+          <div class="buyrow"><button class="clr" data-bondclear aria-label="Clear">×</button><button class="maxb" data-bondmax>MAX</button><input id="bondAmt" inputmode="decimal" enterkeyhint="done" placeholder="$0.00" aria-label="Amount"><button class="qbtn buy" data-bondbuy>Buy</button></div>` });
+      continue;
+    }
     if (inv.rate) {
       const next = h ? Math.min(...h.lots.map((l) => l.maturesIn)) : null;
       cards.push({ key: id, cls: 'inv', open: id,
@@ -952,6 +1050,7 @@ function renderPlay(){
         <div class="row"><span class="muted">Rate now</span><span class="mine">${a?.rate != null ? a.rate.toFixed(2) + '%' : '—'}</span></div>
         ${moneyRows(h)}
         <div class="row" style="margin-top:3px;"><span class="muted">${next != null ? 'Next payout' : 'Locked for'}</span><span>${next != null ? next : inv.term || 12} mo</span></div>`,
+        sub: id === 'cd' ? lotPies((h?.lots || []).map((l) => ({ ...l, kind: 'cd' })), running) : null,
         actions: id === 'cd'
           ? `<button class="qbtn buy" data-quick="buy" data-asset="cd" ${off}>Buy</button><button class="qbtn sell" data-open="cd" ${h ? '' : 'disabled'}>Break…</button>`
           : `<button class="qbtn buy" data-quick="buy" data-asset="${id}" ${off}>Buy</button><button class="qbtn sell" data-quick="sell" data-asset="${id}" ${h && running ? '' : 'disabled'}>Sell</button>` });
@@ -965,7 +1064,11 @@ function renderPlay(){
       ${moneyRows(h)}`,
       actions: `<button class="qbtn buy" data-quick="buy" data-asset="${id}" ${off}>${buyV}</button><button class="qbtn sell" data-quick="sell" data-asset="${id}" ${h && running ? '' : 'disabled'}>${sellV}</button>` });
   }
+  // Color-code by kind of product so stocks stand out from everything else.
+  const CAT = { savings: 'safe', cd: 'safe', bonds: 'safe', index: 'fund', realestate: 'fund', gold: 'fund', stocks: 'stock' };
+  for (const c of cards) c.cls += ' cat-' + (CAT[c.key] || 'stock');
   patchList($('invGrid'), cards);
+  syncBondCard(d, canBuy);
 
   setHtml($('pBoard'), boardHtml(d.leaderboard, { limit: 10 }));
   setHtml($('pNews'), newsHtml(d.news));
@@ -1336,6 +1439,7 @@ $('qtyCustom').addEventListener('input', (e) => {
 });
 $('qtyCustom').addEventListener('focus', (e) => { e.target.value = e.target.classList.contains('on') ? S.qty : ''; });
 $('qtyCustom').addEventListener('blur', syncQty);
+document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id === 'bondAmt') { e.target.blur(); buyBond(); } });
 $('qtyCustom').addEventListener('keydown', (e) => { if (e.key === 'Enter') e.target.blur(); });
 $('hbPause').addEventListener('click', () => hostOp(S.data?.room.status === 'paused' ? 'resume' : 'pause'));
 $('hbEnd').addEventListener('click', () => { if (confirm('End the game now for everyone?')) hostOp('end'); });
@@ -1348,9 +1452,14 @@ $('payDebtBtn').addEventListener('click', async () => {
 });
 
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-flip],[data-pick],[data-ready],[data-opengate],[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
+  if (e.target.closest('input')) return; // typing in a box isn't a tap on its card
+  const t = e.target.closest('[data-term],[data-bondmax],[data-bondclear],[data-bondbuy],[data-flip],[data-pick],[data-ready],[data-opengate],[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
   if (!t) { if (e.target === $('overlay') && S.sheet?.type !== 'gate') closeSheet(); return; }
   if (t.dataset.go) { show(t.dataset.go); return; }
+  if (t.dataset.term) { S.bondTerm = t.dataset.term; syncBondCard(S.data, S.data.room.status === 'running' && !(S.data.me.bills || []).length); return; }
+  if ('bondmax' in t.dataset) { $('bondAmt').value = (Math.floor(S.data.me.cash * 100) / 100).toFixed(2); return; }
+  if ('bondclear' in t.dataset) { $('bondAmt').value = ''; return; }
+  if ('bondbuy' in t.dataset) { buyBond(); return; }
   if (t.dataset.flip) {
     const id = t.dataset.flip;
     if (S.flipped.has(id)) S.flipped.delete(id); else S.flipped.add(id);
@@ -1406,6 +1515,7 @@ document.addEventListener('click', async (e) => {
     const lot = S.data.me.holdings[kind]?.lots.find((l) => l.id === t.dataset.cashout);
     if (!lot) return;
     if (kind === 'cd' && !confirm(`Break this CD early? You'll get ${money(lot.breakValue)} (3 months of interest is the penalty).`)) return;
+    if (kind !== 'cd' && !confirm(`Sell this bond now for ${money(lot.breakValue)}? (No penalty.)`)) return;
     if (await doTrade(kind, 'sell', null, lot.id)) { toast(`🔓 +${money(lot.breakValue)} to pocket cash`, 'good', 2500); renderPlay(); }
     else toast(S.lastError || 'Could not do that.', 'bad');
     return;
