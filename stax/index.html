@@ -300,6 +300,7 @@
   .al-pay{font-size:19px;padding:14px 28px;min-width:260px;}
   .al-later{color:#ffe1da;border-color:rgba(255,255,255,.35);min-width:260px;}
   .updatepill{position:fixed;bottom:calc(14px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:70;background:var(--gold);color:var(--ink);font-weight:800;font-size:14px;padding:8px 16px;border-radius:20px;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);cursor:pointer;}
+  .soundbtn{background:var(--bg2);border:1px solid var(--line);border-radius:10px;font-size:18px;line-height:1;padding:6px 8px;cursor:pointer;align-self:center;}
   .conn{position:fixed;top:calc(6px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:70;background:var(--down);color:var(--ink);font-weight:800;font-size:13px;padding:5px 12px;border-radius:20px;border:2px solid var(--ink);pointer-events:none;}
   .toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:60;display:flex;flex-direction:column;gap:8px;width:min(520px,calc(100% - 32px));pointer-events:none;}
   .toast{background:var(--cream);color:var(--ink);border:2px solid var(--ink);box-shadow:0 4px 0 var(--ink);border-radius:14px;padding:11px 14px;font-weight:600;animation:pop .25s ease;pointer-events:auto;display:flex;gap:10px;align-items:flex-start;}
@@ -567,6 +568,7 @@
       <div class="stat rankstat"><div class="label">Rank</div><div class="value" id="pRank">#–</div><div class="gap" id="pGap"></div></div>
       <div class="stat"><div class="label">Pocket cash</div><div class="value" id="pCash">$0</div></div>
       <div class="stat"><div class="label">Net worth</div><div class="value" id="pWorth">$0</div></div>
+      <button class="soundbtn" data-sound aria-label="Sound on or off">🔊</button>
       <div class="stat debt hidden" id="pDebtWrap">
         <div class="label">Card debt (22%)</div>
         <div class="value" id="pDebt">$0</div>
@@ -651,6 +653,7 @@
       <div class="muted">Code <b class="display" style="color:var(--gold);font-size:28px;letter-spacing:3px;" id="hCode2"></b></div>
       <div class="paused-banner hidden" id="hGate" style="flex:1 1 100%;margin:0;"></div>
       <div class="host-controls">
+        <button class="soundbtn" data-sound aria-label="Sound on or off">🔊</button>
         <button class="btn" id="pauseBtn">Pause</button>
         <button class="btn ghost" id="endBtn">End game</button>
       </div>
@@ -1093,22 +1096,23 @@ function announce(d){
     if (n.kind === 'expense') {
       const bill = [...(d.me.bills || [])].reverse().find((b) => b.title === n.text && !b.overdue);
       queueAlert({ kind: 'bill', billId: bill?.id, title: n.text, amount: -n.amount });
+      sound('bad');
     }
-    else if (n.kind === 'windfall') toast(`🎉 ${n.text} +${money(n.amount)}`, 'good');
-    else if (n.kind === 'listing') toast(`🔔 New stock: ${n.text.replace('New on the market: ', '').split('.')[0]}`, 'news');
-    else toast('📰 ' + n.text, 'news', 7000);
+    else if (n.kind === 'windfall') { toast(`🎉 ${n.text} +${money(n.amount)}`, 'good'); sound('coin'); }
+    else if (n.kind === 'listing') { toast(`🔔 New stock: ${n.text.replace('New on the market: ', '').split('.')[0]}`, 'news'); sound('news'); }
+    else { toast('📰 ' + n.text, 'news', 7000); sound('news'); }
   }
   // Matured CDs/bonds and bills that went on the card.
   if (S.seenLog === null || S.seenLog === undefined) S.seenLog = new Set(first ? (d.me.log || []).map((x) => x.id) : []);
   for (const l of d.me.log || []) {
     if (S.seenLog.has(l.id)) continue;
     S.seenLog.add(l.id);
-    if (l.id.startsWith('o:')) queueAlert({ kind: 'overdue', billId: l.id.slice(2), text: l.text });
-    else toast((l.kind === 'bad' ? '🔥 ' : '🔓 ') + l.text, l.kind, 8000);
+    if (l.id.startsWith('o:')) { queueAlert({ kind: 'overdue', billId: l.id.slice(2), text: l.text }); sound('bad'); }
+    else { toast((l.kind === 'bad' ? '🔥 ' : '🔓 ') + l.text, l.kind, 8000); sound(l.kind === 'bad' ? 'bad' : 'coin'); }
   }
   const m = Math.floor(d.room.month);
   const payIdx = Math.min(39, Math.floor(m / 6));
-  if (S.lastPayIdx !== null && payIdx > S.lastPayIdx && d.room.status === 'running') toast(`💵 Payday! +${money(d.room.paycheck)}`, 'good', 2500);
+  if (S.lastPayIdx !== null && payIdx > S.lastPayIdx && d.room.status === 'running') { toast(`💵 Payday! +${money(d.room.paycheck)}`, 'good', 2500); sound('coin'); }
   S.lastPayIdx = payIdx;
 
   renderGate(d);
@@ -1170,6 +1174,7 @@ async function spin(){
   const amount = S.qty === 'all' || bet >= S.data.me.cash - 0.005 ? 'all' : bet;
   S.spinning = true;
   syncRoulette(S.data, false);
+  sound('spin');
   // A short spin while the server picks the real number.
   const ball = $('rlBall');
   const flicker = setInterval(() => {
@@ -1182,6 +1187,7 @@ async function spin(){
   S.spinning = false;
   if (!ok) { toast(S.lastError || 'Could not spin.', 'bad'); renderPlay(); return; }
   const last = S.data.me.casino.last;
+  sound(last.delta > 0 ? 'win' : 'lose');
   toast(last.delta > 0 ? `🎰 ${last.label} ${last.color.toUpperCase()} — you won ${money(last.delta)}!` : `🎰 ${last.label} ${last.color.toUpperCase()} — you lost ${money(-last.delta)}.`, last.delta > 0 ? 'good' : 'bad', 3500);
   renderPlay();
 }
@@ -1247,6 +1253,57 @@ function checkForUpdate(d){
   const calm = ['lobby', 'paused'].includes(d.room?.status) && !S.busy && !$('play').querySelector('input:focus');
   if (calm) { location.reload(); return; }
   $('updatePill').classList.remove('hidden');
+}
+
+// ---------- sound effects ----------
+// Little sounds made in the browser (no files). iPads only allow sound after
+// the first tap, so audio starts on the first touch. Muting is remembered.
+const SFX = {
+  ctx: null,
+  on: (() => { try { return localStorage.getItem('stax:sound') !== 'off'; } catch { return true; } })(),
+};
+function audioReady(){
+  if (!SFX.on) return null;
+  try {
+    SFX.ctx ||= new (window.AudioContext || window.webkitAudioContext)();
+    if (SFX.ctx.state === 'suspended') SFX.ctx.resume();
+    return SFX.ctx;
+  } catch { return null; }
+}
+['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => audioReady(), { passive: true }));
+function tone(freq, at, dur, { type = 'sine', vol = 0.12, slideTo } = {}){
+  const ctx = SFX.ctx;
+  const t = ctx.currentTime + at;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, t);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(ctx.destination);
+  o.start(t); o.stop(t + dur + 0.05);
+}
+function sound(name){
+  if (!SFX.on || !SFX.ctx || SFX.ctx.state !== 'running') return;
+  try {
+    switch (name) {
+      case 'news': tone(880, 0, 0.35); tone(660, 0.18, 0.45); break;
+      case 'coin': tone(988, 0, 0.09, { type: 'square', vol: 0.05 }); tone(1319, 0.08, 0.3, { type: 'square', vol: 0.05 }); break;
+      case 'bad': tone(330, 0, 0.3, { type: 'sawtooth', vol: 0.06, slideTo: 220 }); tone(247, 0.28, 0.45, { type: 'sawtooth', vol: 0.06, slideTo: 165 }); break;
+      case 'unlock': [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.09, 0.35, { type: 'triangle', vol: 0.1 })); break;
+      case 'click': tone(1200, 0, 0.05, { type: 'triangle', vol: 0.05 }); break;
+      case 'spin': for (let i = 0; i < 12; i++) tone(1500 + (i % 2) * 200, i * (0.06 + i * 0.006), 0.03, { type: 'square', vol: 0.025 }); break;
+      case 'win': [659, 784, 988, 1319].forEach((f, i) => tone(f, i * 0.08, 0.3, { type: 'triangle', vol: 0.1 })); break;
+      case 'lose': tone(392, 0, 0.25, { type: 'triangle', vol: 0.09 }); tone(330, 0.2, 0.25, { type: 'triangle', vol: 0.09 }); tone(262, 0.4, 0.5, { type: 'triangle', vol: 0.09 }); break;
+    }
+  } catch {}
+}
+function setSound(on){
+  SFX.on = on;
+  try { localStorage.setItem('stax:sound', on ? 'on' : 'off'); } catch {}
+  document.querySelectorAll('.soundbtn').forEach((b) => { b.textContent = on ? '🔊' : '🔇'; b.title = on ? 'Sound on (tap to mute)' : 'Sound off (tap to turn on)'; });
+  if (on) { audioReady(); setTimeout(() => sound('click'), 50); }
 }
 
 // ---------- error reporting ----------
@@ -1327,6 +1384,7 @@ function renderGate(d){
   if (d.me && !st.meReady && S.gateShown !== st.g.month) {
     S.gateShown = st.g.month;
     openSheet('gate', String(st.g.month));
+    sound('unlock');
   }
   if (S.sheet?.type === 'gate') renderSheet();
 }
@@ -1728,6 +1786,7 @@ async function doTrade(asset, side, amount, lot, shares){
   }
   S.data.me = r.data.me;
   S.meV = r.data.me.v;
+  if (asset !== 'roulette') sound('click');
   if ($('tradeError')) $('tradeError').textContent = '';
   return true;
 }
@@ -2055,7 +2114,7 @@ $('payDebtBtn').addEventListener('click', async () => {
 
 document.addEventListener('click', async (e) => {
   if (e.target.closest('input')) return; // typing in a box isn't a tap on its card
-  const t = e.target.closest('[data-commod],[data-chartplayer],[data-rlmore],[data-rlpick],[data-skipgate],[data-payall],[data-alertpay],[data-alertlater],[data-rl],[data-spin],[data-sq],[data-term],[data-bondmax],[data-bondclear],[data-bondbuy],[data-flip],[data-ready],[data-opengate],[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
+  const t = e.target.closest('[data-sound],[data-commod],[data-chartplayer],[data-rlmore],[data-rlpick],[data-skipgate],[data-payall],[data-alertpay],[data-alertlater],[data-rl],[data-spin],[data-sq],[data-term],[data-bondmax],[data-bondclear],[data-bondbuy],[data-flip],[data-ready],[data-opengate],[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
   if (!t) { if (e.target === $('overlay') && S.sheet?.type !== 'gate') closeSheet(); return; }
   if (t.dataset.go) { show(t.dataset.go); return; }
   if (t.dataset.term) { S.bondTerm = t.dataset.term; syncBondCard(S.data, S.data.room.status === 'running' && !(S.data.me.bills || []).length); return; }
@@ -2090,6 +2149,7 @@ document.addEventListener('click', async (e) => {
     } else { t.disabled = false; toast(S.lastError || 'Could not pay.', 'bad'); }
     return;
   }
+  if ('sound' in t.dataset) { setSound(!SFX.on); return; }
   if (t.dataset.commod) { S.commodPick = t.dataset.commod; renderPlay(); return; }
   if (t.dataset.chartplayer) { S.chartPlayer = t.dataset.chartplayer; renderPlayerPills(S.data, S.data.reveal.startYear); return; }
   if ('rlmore' in t.dataset) { openSheet('roulette', 'table'); return; }
@@ -2182,6 +2242,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ---------- boot ----------
+setSound(SFX.on);
 (function boot(){
   const q = new URLSearchParams(location.search);
   const last = store.get('stax:last');
