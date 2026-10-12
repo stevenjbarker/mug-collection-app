@@ -120,7 +120,7 @@
   .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:0 0 10px;}
   .lg::before{content:'';display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;}
   .lg.gamble::before{background:#e0575b;}
-  .lg.safe::before{background:#6fbf73;} .lg.fund::before{background:var(--gold);} .lg.stock::before{background:#7aa2ff;}
+  .lg.safe::before{background:#6fbf73;} .lg.fund::before{background:var(--gold);} .lg.stk::before{background:#7aa2ff;}
   .inv.cat-safe{border-top:4px solid #6fbf73;}
   .inv.cat-gamble{border:1px solid #a8474a;border-top:4px solid #e0575b;background:linear-gradient(180deg,#3a2326,#2f2224);}
   .inv.locked.cat-gamble{background:var(--panel);border-color:var(--line);border-top:4px solid #a8474a;}
@@ -632,7 +632,7 @@
   </div>
   <div class="play">
     <div>
-      <div class="legend"><span class="lg safe">Safe savings</span><span class="lg fund">Funds &amp; assets</span><span class="lg stock">Individual stocks</span><span class="lg gamble">Gambling</span></div>
+      <div class="legend"><span class="lg safe">Safe savings</span><span class="lg fund">Funds &amp; assets</span><span class="lg stk">Individual stocks</span><span class="lg gamble">Gambling</span></div>
       <div class="grid" id="invGrid"></div>
       <div class="rowlabel" id="stockLabel">🏷️ Individual stocks <span class="taxwarn">🧾 Selling at a profit is taxed: 22% if held under a year, 15% after</span></div>
       <div class="grid stockgrid" id="stockGrid"></div>
