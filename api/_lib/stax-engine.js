@@ -426,12 +426,37 @@ export function settle(room, player, month) {
   return p;
 }
 
-function sellUnits(p, asset, units) {
+// Capital gains tax on the profit when an investment is sold (savings is
+// exempt). Like the U.S.: held under a year it's taxed like a paycheck,
+// a year or longer at the lower long-term rate. Losses aren't taxed.
+export const TAX_SHORT = 0.22;
+export const TAX_LONG = 0.15;
+export const TAX_LONG_MONTHS = 12;
+
+function addUnits(p, asset, units, cost, month) {
+  const held = p.units[asset] || 0;
+  p.since ||= {};
+  // Average purchase month, weighted by units, decides short vs long term.
+  p.since[asset] = held > 1e-9 ? ((p.since[asset] ?? 0) * held + month * units) / (held + units) : month;
+  p.units[asset] = held + units;
+  p.cost[asset] = (p.cost[asset] || 0) + cost;
+}
+
+function sellUnits(p, asset, units, proceeds, month) {
   const held = p.units[asset] || 0;
   const frac = held ? Math.min(1, units / held) : 0;
+  const basis = (p.cost[asset] || 0) * frac;
   p.cost[asset] = (p.cost[asset] || 0) * (1 - frac);
   p.units[asset] = held - units;
-  if (p.units[asset] < 1e-9) { delete p.units[asset]; delete p.cost[asset]; }
+  const heldMonths = month - (p.since?.[asset] ?? 0);
+  if (p.units[asset] < 1e-9) { delete p.units[asset]; delete p.cost[asset]; if (p.since) delete p.since[asset]; }
+  const gain = proceeds - basis;
+  if (asset === 'savings' || !(gain >= 0.005)) return;
+  const rate = heldMonths >= TAX_LONG_MONTHS - 1e-9 ? TAX_LONG : TAX_SHORT;
+  const tax = round2(gain * rate);
+  p.cashDelta -= tax;
+  p.taxes = round2((p.taxes || 0) + tax);
+  p.lastTax = { t: p.trades, tax, gain: round2(gain), rate };
 }
 
 export class TradeError extends Error {}
@@ -548,28 +573,26 @@ export function trade(room, player, month, { asset, side, amount, lot, shares })
       const cost = round2(n * px);
       if (cost > cash + 0.005) throw new TradeError(`${n} shares cost $${cost.toLocaleString('en-US')}. ${SHORT}`);
       p.cashDelta -= cost;
-      p.units[asset] = held + n;
-      p.cost[asset] = (p.cost[asset] || 0) + cost;
+      addUnits(p, asset, n, cost, month);
     } else if (side === 'sell') {
       if (!(held > 1e-9)) throw new TradeError("You don't own any shares.");
       const n = shares === 'all' ? held : Math.min(held, Math.floor(Number(shares)));
       if (!(n > 0)) throw new TradeError('Pick how many shares.');
-      sellUnits(p, asset, n);
       p.cashDelta += n * px;
+      sellUnits(p, asset, n, n * px, month);
     } else throw new TradeError('Bad trade.');
   } else {
     const px = price(room, asset, month);
     if (side === 'buy') {
       const amt = buyAmount();
       p.cashDelta -= amt;
-      p.units[asset] = (p.units[asset] || 0) + amt / px;
-      p.cost[asset] = (p.cost[asset] || 0) + amt;
+      addUnits(p, asset, amt / px, amt, month);
     } else if (side === 'sell') {
       const have = (p.units[asset] || 0) * px;
       const amt = amount === 'all' ? have : Math.min(Number(amount), have);
       if (!(amt > 0)) throw new TradeError("You don't own any.");
-      sellUnits(p, asset, amount === 'all' ? p.units[asset] : amt / px);
       p.cashDelta += amt;
+      sellUnits(p, asset, amount === 'all' ? p.units[asset] : amt / px, amt, month);
     } else throw new TradeError('Bad trade.');
   }
   p.cashDelta = round2(p.cashDelta);
@@ -586,6 +609,7 @@ export function summarize(room, player, month) {
   for (const [asset, units] of Object.entries(p.units)) {
     const value = round2(units * price(room, asset, month));
     holdings[asset] = { value, cost: round2(p.cost[asset] || 0) };
+    if (asset !== 'savings') holdings[asset].held = Math.floor(month - (p.since?.[asset] ?? 0));
     if (stockById(asset)) holdings[asset].shares = Math.round(units * 1000) / 1000;
     invested += value;
   }
@@ -608,6 +632,7 @@ export function summarize(room, player, month) {
   const debt = round2(p.debtUnits * price(room, 'card', month));
   return {
     cash, debt, holdings, bills, log: p.log, casino: p.casino || null,
+    taxes: p.taxes || 0, lastTax: p.lastTax && p.lastTax.t === p.trades - 1 ? p.lastTax : null,
     netWorth: round2(cash + invested - debt - owed),
     contributed: paychecks(month) * PAYCHECK,
   };

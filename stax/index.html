@@ -248,13 +248,15 @@
   .lb li.me{color:var(--gold);font-weight:800;}
   .kick{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:0 4px;}
   .kick:hover{color:var(--down);}
-  .mix{display:flex;align-items:center;gap:14px;}
+  .taxline{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.4;}
+  .taxline b{color:var(--cream);}
+  .mix{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;}
   .mix svg{width:118px;height:118px;flex:none;}
   .mix svg path{cursor:default;}
-  .mix ul{list-style:none;margin:0;padding:0;font-size:13px;flex:1;min-width:0;}
+  .mix ul{list-style:none;margin:0;padding:0;font-size:13px;flex:1 1 130px;min-width:120px;}
   .mix li{display:flex;align-items:center;gap:6px;padding:2px 0;}
   .mix li i{width:10px;height:10px;border-radius:3px;flex:none;}
-  .mix li span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .mix li span{flex:1;min-width:0;line-height:1.2;}
   .mix li b{font-variant-numeric:tabular-nums;}
   .mix li em{font-style:normal;color:var(--muted);font-variant-numeric:tabular-nums;width:34px;text-align:right;}
   .news{list-style:none;margin:0;padding:0;font-size:14px;}
@@ -314,6 +316,9 @@
   .al-pay{font-size:19px;padding:14px 28px;min-width:260px;}
   .al-later{color:#ffe1da;border-color:rgba(255,255,255,.35);min-width:260px;}
   .updatepill{position:fixed;bottom:calc(14px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:70;background:var(--gold);color:var(--ink);font-weight:800;font-size:14px;padding:8px 16px;border-radius:20px;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);cursor:pointer;}
+  .sndbtns{display:flex;flex-direction:column;gap:4px;align-self:center;}
+  .sndbtns .soundbtn{font-size:15px;padding:4px 6px;}
+  .musicbtn.off{opacity:.4;text-decoration:line-through;}
   .soundbtn{background:var(--bg2);border:1px solid var(--line);border-radius:10px;font-size:18px;line-height:1;padding:6px 8px;cursor:pointer;align-self:center;}
   .conn{position:fixed;top:calc(6px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:70;background:var(--down);color:var(--ink);font-weight:800;font-size:13px;padding:5px 12px;border-radius:20px;border:2px solid var(--ink);pointer-events:none;}
   .toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:60;display:flex;flex-direction:column;gap:8px;width:min(520px,calc(100% - 32px));pointer-events:none;}
@@ -425,7 +430,8 @@
     .buyrow .qbtn{flex-basis:56px;}
     .lots{gap:6px;margin:4px 0 0;}
     .lotpie{width:60px;} .pie{width:46px;height:46px;} .pie span{font-size:9.5px;padding:1px 2px;} .pielabel{font-size:9.5px;}
-    .side .card{padding:10px 12px;} .side .card + .card{margin-top:10px;}
+    .side .card{padding:10px 12px;}
+    .mix{flex-wrap:nowrap;gap:8px;} .mix svg{width:74px;height:74px;} .mix ul{font-size:11.5px;min-width:0;flex:1 1 auto;} .mix li{padding:1px 0;} .mix li em{width:30px;} .side .card + .card{margin-top:10px;}
     .side h2{font-size:15px;margin-bottom:4px;}
     .lb li{padding:4px 0;font-size:13px;}
     .news{font-size:12.5px;max-height:240px;overflow:auto;} .news li{padding:5px 0;}
@@ -597,7 +603,7 @@
       <div class="stat rankstat"><div class="label">Rank</div><div class="value" id="pRank">#–</div><div class="gap" id="pGap"></div></div>
       <div class="stat"><div class="label">Pocket cash</div><div class="value" id="pCash">$0</div></div>
       <div class="stat"><div class="label">Net worth</div><div class="value" id="pWorth">$0</div></div>
-      <button class="soundbtn" data-sound aria-label="Sound on or off">🔊</button>
+      <div class="sndbtns"><button class="soundbtn" data-sound aria-label="Sound on or off">🔊</button><button class="soundbtn musicbtn" data-music aria-label="Music on or off">🎵</button></div>
       <div class="stat debt hidden" id="pDebtWrap">
         <div class="label">Card debt (22%)</div>
         <div class="value" id="pDebt">$0</div>
@@ -686,7 +692,7 @@
       <div class="muted">Code <b class="display" style="color:var(--gold);font-size:28px;letter-spacing:3px;" id="hCode2"></b></div>
       <div class="paused-banner hidden" id="hGate" style="flex:1 1 100%;margin:0;"></div>
       <div class="host-controls">
-        <button class="soundbtn" data-sound aria-label="Sound on or off">🔊</button>
+        <div class="sndbtns"><button class="soundbtn" data-sound aria-label="Sound on or off">🔊</button><button class="soundbtn musicbtn" data-music aria-label="Music on or off">🎵</button></div>
         <button class="btn" id="pauseBtn">Pause</button>
         <button class="btn ghost" id="endBtn">End game</button>
       </div>
@@ -768,7 +774,7 @@ const INV = {
   cd:        { name: 'CD · 1 yr', icon: '🔐', risk: 'Very low risk', unlock: 12, rate: true, lessonKey: 'cds', lesson: CD_LESSON, term: 12 },
   cd36:      { name: 'CD · 3 yr', icon: '🔐', risk: 'Very low risk', unlock: 12, rate: true, lessonKey: 'cds', lesson: CD_LESSON, term: 36 },
   index:     { name: 'Index Fund', icon: '📈', risk: 'Medium risk', unlock: 24,
-    lesson: 'An index fund buys a tiny slice of the 500 biggest U.S. companies all at once. When one company stumbles, the others carry it. Some years it drops hard, but over long stretches it has grown more than almost anything else.' },
+    lesson: 'An index fund buys a tiny slice of the 500 biggest U.S. companies all at once. When one company stumbles, the others carry it. Some years it drops hard, but over long stretches it has grown more than almost anything else. One catch: when you sell something for more than you paid, you owe capital gains tax on the profit. Sell within a year and it\'s 22%; hold a year or longer and it drops to 15%.' },
   stocks:    { name: 'Individual Stocks', icon: '🏷️', risk: 'High risk', unlock: 36,
     lesson: 'A share of stock is a piece of ownership in one company. If the company grows, so does your share. If it struggles, you can lose a lot. These are REAL companies with their names changed, and each game deals a different handful. Read the descriptions and decide who you believe in.' },
   b1:        { name: 'Gov. Bond · 1 mo', icon: '🏛️', risk: 'Very low risk', unlock: 60, rate: true, lessonKey: 'bonds', lesson: BOND_LESSON, term: 1 },
@@ -839,6 +845,7 @@ function show(id){
   if (id !== 'play' && typeof fitToScreen === 'function') { document.body.style.zoom = ''; fitZoom = 1; fitKey = ''; }
   for (const s of ['home','hostAuth','lobby','play','host','results']) $(s).classList.toggle('hidden', s !== id);
   window.scrollTo(0, 0);
+  if (typeof syncMusic === 'function') syncMusic();
 }
 
 // Every request gives up after 8 seconds so a bad connection can't freeze the game.
@@ -866,6 +873,7 @@ async function api(method, body, params){
 // buttons). Elsewhere they show as a small closable note at the bottom.
 let tickerTimer = null;
 function toast(text, kind = '', ms = 4200){
+  if (S.taxNote && kind === 'good') { text += S.taxNote; ms = Math.max(ms, 7000); S.taxNote = ''; }
   if (S.sheet && $('sheetMsg')) {
     $('sheetMsg').className = 'sheetmsg ' + kind;
     $('sheetMsg').textContent = text;
@@ -1140,8 +1148,8 @@ function announce(d){
       sound('bad');
     }
     else if (n.kind === 'windfall') { toast(`🎉 ${n.text} +${money(n.amount)}`, 'good'); sound('coin'); }
-    else if (n.kind === 'listing') { toast(`🔔 New stock: ${n.text.replace('New on the market: ', '').split('.')[0]}`, 'news'); sound('news'); }
-    else { toast('📰 ' + n.text, 'news', 7000); sound('news'); }
+    else if (n.kind === 'listing') { toast(`🔔 New stock: ${n.text.replace('New on the market: ', '').split('.')[0]}`, 'news'); }
+    else toast('📰 ' + n.text, 'news', 7000);
   }
   // Matured CDs/bonds and bills that went on the card.
   if (S.seenLog === null || S.seenLog === undefined) S.seenLog = new Set(first ? (d.me.log || []).map((x) => x.id) : []);
@@ -1149,14 +1157,15 @@ function announce(d){
     if (S.seenLog.has(l.id)) continue;
     S.seenLog.add(l.id);
     if (l.id.startsWith('o:')) { queueAlert({ kind: 'overdue', billId: l.id.slice(2), text: l.text }); sound('bad'); }
-    else { toast((l.kind === 'bad' ? '🔥 ' : '🔓 ') + l.text, l.kind, 8000); sound(l.kind === 'bad' ? 'bad' : 'coin'); }
+    else toast((l.kind === 'bad' ? '🔥 ' : '🔓 ') + l.text, l.kind, 8000);
   }
   const m = Math.floor(d.room.month);
   const payIdx = Math.min(39, Math.floor(m / 6));
-  if (S.lastPayIdx !== null && payIdx > S.lastPayIdx && d.room.status === 'running') { toast(`💵 Payday! +${money(d.room.paycheck)}`, 'good', 2500); sound('coin'); }
+  if (S.lastPayIdx !== null && payIdx > S.lastPayIdx && d.room.status === 'running') { toast(`💵 Payday! +${money(d.room.paycheck)}`, 'good', 2500); }
   S.lastPayIdx = payIdx;
 
   renderGate(d);
+  syncMusic();
 }
 
 // Parts of the bond card that change without rebuilding its buttons/input.
@@ -1348,8 +1357,105 @@ function sound(name){
 function setSound(on){
   SFX.on = on;
   try { localStorage.setItem('stax:sound', on ? 'on' : 'off'); } catch {}
-  document.querySelectorAll('.soundbtn').forEach((b) => { b.textContent = on ? '🔊' : '🔇'; b.title = on ? 'Sound on (tap to mute)' : 'Sound off (tap to turn on)'; });
+  document.querySelectorAll('.soundbtn:not(.musicbtn)').forEach((b) => { b.textContent = on ? '🔊' : '🔇'; b.title = on ? 'Sound on (tap to mute)' : 'Sound off (tap to turn on)'; });
   if (on) { audioReady(); setTimeout(() => sound('click'), 50); }
+  if (typeof syncMusic === 'function') syncMusic();
+}
+
+// ---------- soundtrack ----------
+// An original driving loop made on the fly with Web Audio (no audio files):
+// D minor at 128 bpm, i–VI–III–VII with a lift to A at the end of each phrase.
+// Kick, clap and hats, a pulsing bass and pads; an arpeggio joins every
+// other phrase. Plays only on the game screen, softer while paused.
+const MUSIC = {
+  on: (() => { try { return localStorage.getItem('stax:music') !== 'off'; } catch { return true; } })(),
+  bus: null, noise: null, timer: null, step: 0, next: 0, level: 0, stopAt: 0,
+};
+const BPM = 128, STEP = 60 / BPM / 4; // sixteenth notes
+const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
+// Bass root (MIDI) and chord tones for each bar of the 8-bar phrase.
+const BARS = [
+  [38, [62, 65, 69]], [34, [62, 65, 70]], [41, [60, 65, 69]], [36, [60, 64, 67]],
+  [38, [62, 65, 69]], [34, [62, 65, 70]], [36, [60, 64, 67]], [33, [61, 64, 69]],
+];
+function musicSetup(ctx){
+  if (MUSIC.bus) return;
+  const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -18; comp.ratio.value = 4;
+  MUSIC.bus = ctx.createGain();
+  MUSIC.bus.gain.value = 0;
+  MUSIC.bus.connect(comp).connect(ctx.destination);
+  const buf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  MUSIC.noise = buf;
+}
+function mVoice(ctx, t, { freq, type = 'sawtooth', dur, vol, attack = 0.005, cutoff = 2000, detune = 0, slideTo }){
+  const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t); o.detune.value = detune;
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+  f.type = 'lowpass'; f.frequency.value = cutoff;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + attack);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(f).connect(g).connect(MUSIC.bus);
+  o.start(t); o.stop(t + dur + 0.05);
+}
+function mNoise(ctx, t, { dur, vol, type = 'highpass', freq = 7000 }){
+  const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+  src.buffer = MUSIC.noise; f.type = type; f.frequency.value = freq;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f).connect(g).connect(MUSIC.bus);
+  src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.05);
+}
+function musicStep(ctx, i, t){
+  const s16 = i % 16, bar = Math.floor(i / 16) % 8, phrase = Math.floor(i / 128);
+  const [root, chord] = BARS[bar];
+  if (s16 % 4 === 0) mVoice(ctx, t, { freq: 150, slideTo: 42, type: 'sine', dur: 0.32, vol: 0.9, cutoff: 800 });
+  if (s16 === 4 || s16 === 12) mNoise(ctx, t, { dur: 0.16, vol: 0.32, type: 'bandpass', freq: 1800 });
+  if (s16 % 4 === 2) mNoise(ctx, t, { dur: 0.05, vol: 0.12 });
+  if (s16 % 2 === 0) mVoice(ctx, t, { freq: midi(root + (s16 % 8 === 6 ? 12 : 0)), dur: STEP * 1.8, vol: 0.32, cutoff: s16 % 4 === 0 ? 900 : 600 });
+  if (s16 === 0) for (const n of chord) for (const d of [-8, 8]) mVoice(ctx, t, { freq: midi(n), dur: STEP * 16, vol: 0.035, attack: 0.25, cutoff: 1400, detune: d });
+  if (phrase % 2 === 1 || bar >= 6) {
+    const n = chord[s16 % 3] + (s16 % 6 >= 3 ? 12 : 0);
+    mVoice(ctx, t, { freq: midi(n), type: 'square', dur: STEP * 0.9, vol: 0.035, cutoff: 3200 });
+  }
+  // A short noise riser into the top of each phrase.
+  if (bar === 7 && s16 >= 12) mNoise(ctx, t, { dur: STEP, vol: 0.05 + (s16 - 12) * 0.04, freq: 3000 + (s16 - 12) * 1500 });
+}
+function musicTick(){
+  const ctx = SFX.ctx;
+  if (!ctx || ctx.state !== 'running') return;
+  if (!MUSIC.level && Date.now() > MUSIC.stopAt) { clearInterval(MUSIC.timer); MUSIC.timer = null; MUSIC.step = 0; return; }
+  if (MUSIC.next < ctx.currentTime - 0.1) MUSIC.next = ctx.currentTime + 0.05; // after a stall, don't play catch-up
+  while (MUSIC.next < ctx.currentTime + 0.25) {
+    musicStep(ctx, MUSIC.step++, MUSIC.next);
+    MUSIC.next += STEP;
+  }
+}
+// Called on every render: starts, fades or stops the music to match the game.
+function syncMusic(){
+  document.querySelectorAll('.musicbtn').forEach((b) => { b.classList.toggle('off', !MUSIC.on); b.title = MUSIC.on ? 'Music on (tap to turn off)' : 'Music off (tap to turn on)'; });
+  const room = S.data?.room;
+  const playing = (!$('play').classList.contains('hidden') || !$('host').classList.contains('hidden')) && room && room.status !== 'done' && room.status !== 'lobby';
+  const want = SFX.on && MUSIC.on && playing ? (room.status === 'running' ? 0.42 : 0.16) : 0;
+  const ctx = want ? audioReady() : SFX.ctx;
+  if (!ctx) return;
+  if (want === MUSIC.level) return;
+  if (want) {
+    musicSetup(ctx);
+    if (!MUSIC.timer) { MUSIC.next = ctx.currentTime + 0.1; MUSIC.timer = setInterval(musicTick, 60); }
+  } else MUSIC.stopAt = Date.now() + 2500; // let it fade out, then stop
+  if (MUSIC.bus) {
+    MUSIC.bus.gain.cancelScheduledValues(ctx.currentTime);
+    MUSIC.bus.gain.setTargetAtTime(want, ctx.currentTime, 0.4);
+  }
+  MUSIC.level = want;
+}
+function setMusic(on){
+  MUSIC.on = on;
+  try { localStorage.setItem('stax:music', on ? 'on' : 'off'); } catch {}
+  syncMusic();
 }
 
 // ---------- error reporting ----------
@@ -1742,6 +1848,7 @@ function renderSheet(fresh = false){
         <div><div class="label">${sh.id === 'savings' ? 'Balance' : 'You own'}</div><div class="value" id="tOwn"></div></div>
       </div>
       <div class="muted" style="font-size:14px;">Pocket cash: <b style="color:var(--cream);" id="tCash"></b></div>
+      <div class="taxline" id="tTax"></div>
       ${isStock ? `<div id="tShares"></div>` : `
       <input class="field" id="amt" inputmode="decimal" enterkeyhint="done" placeholder="Amount in dollars" style="margin-top:8px;">
       <div class="chips">
@@ -1764,6 +1871,7 @@ function renderSheet(fresh = false){
   $('tChange').className = 'value ' + (ch >= 0 ? 'up' : 'down');
   $('tOwn').textContent = h ? (isStock ? `${fmtShares(h.shares)} sh` : money(h.value)) : isStock ? '0 sh' : '$0';
   $('tCash').textContent = money(d.me.cash);
+  if ($('tTax')) setHtml($('tTax'), taxHint(sh.id, h));
   if (isStock) {
     const shares = h?.shares || 0;
     const affordable = Math.floor((d.me.cash + 0.005) / item.price);
@@ -1822,6 +1930,15 @@ function renderLotSheet(id, fresh){
     </div>`).join('') : '');
 }
 
+// What selling everything right now would cost in capital gains tax.
+function taxHint(id, h){
+  if (id === 'savings') return '';
+  if (!h || !(h.value > h.cost + 0.5)) return h ? '🧾 No tax if you sell now: no profit to tax.' : '🧾 Profits are taxed when you sell: 22% if held under a year, 15% after.';
+  const long = (h.held ?? 0) >= 12, rate = long ? 0.15 : 0.22;
+  const left = 12 - (h.held ?? 0);
+  return `🧾 Selling it all now: about <b>${money((h.value - h.cost) * rate)}</b> tax (${long ? '15% long-term' : '22% short-term'} on ${money(h.value - h.cost)} profit).${long ? '' : ` Hold ${left} more month${left === 1 ? '' : 's'} and it drops to 15%.`}`;
+}
+
 async function doTrade(asset, side, amount, lot, shares){
   if (S.busy) return;
   S.busy = true;
@@ -1836,7 +1953,9 @@ async function doTrade(asset, side, amount, lot, shares){
   }
   S.data.me = r.data.me;
   S.meV = r.data.me.v;
-  if (asset !== 'roulette') sound('click');
+  // A sale that made a profit pays capital gains tax; say so with the trade's own message.
+  const lt = r.data.me.lastTax;
+  S.taxNote = lt ? ` · 🧾 ${money(lt.tax)} tax (${Math.round(lt.rate * 100)}% ${lt.rate < 0.2 ? 'long-term' : 'short-term'} on ${money(lt.gain)} profit)` : '';
   if ($('tradeError')) $('tradeError').textContent = '';
   return true;
 }
@@ -1897,6 +2016,7 @@ async function quickTrade(asset, side){
 
 // ---------- host ----------
 function renderHost(){
+  syncMusic();
   const d = S.data, status = d.room.status;
   $('hostLobby').classList.toggle('hidden', status !== 'lobby');
   $('hostRun').classList.toggle('hidden', status === 'lobby');
@@ -2003,7 +2123,7 @@ function mixHtml(me){
     a0 = a1;
     return path;
   }).join('');
-  const legend = parts.sort((p, q) => q.v - p.v).map((x) => `<li><i style="background:${x.color}"></i><span>${x.label}</span><b>${shortMoney(x.v)}</b><em>${Math.round((x.v / total) * 100)}%</em></li>`).join('');
+  const legend = parts.sort((p, q) => q.v - p.v).map((x) => `<li title="${x.label}: ${money(x.v)}"><i style="background:${x.color}"></i><span>${x.label}</span><em>${Math.round((x.v / total) * 100)}%</em></li>`).join('');
   return `<svg viewBox="0 0 120 120" role="img" aria-label="Where your money is">${slices}</svg><ul>${legend}</ul>`;
 }
 const PLAYER_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181'];
@@ -2108,6 +2228,7 @@ function holdingsHtml(me, rv){
   if (me.debt > 0) rows.push(['💳 Credit card debt', -me.debt, null]);
   const owed = (me.bills || []).reduce((t, b) => t + b.amount, 0);
   if (owed > 0) rows.push(['🔥 Unpaid bills', -owed, null]);
+  if (me.taxes >= 1) rows.push(['🧾 Capital gains tax paid (already out of cash)', -me.taxes, null]);
   if (me.casino?.spins) rows.push([`🎰 Roulette (${me.casino.spins} spin${me.casino.spins === 1 ? '' : 's'}, already in cash)`, me.casino.net, null]);
   if (!rows.length) return '';
   rows.sort((a, b) => b[1] - a[1]);
@@ -2224,7 +2345,7 @@ $('payDebtBtn').addEventListener('click', async () => {
 
 document.addEventListener('click', async (e) => {
   if (e.target.closest('input')) return; // typing in a box isn't a tap on its card
-  const t = e.target.closest('[data-rvdesc],[data-sound],[data-commod],[data-chartplayer],[data-rlmore],[data-rlpick],[data-skipgate],[data-payall],[data-alertpay],[data-alertlater],[data-rl],[data-spin],[data-sq],[data-term],[data-bondmax],[data-bondclear],[data-bondbuy],[data-flip],[data-ready],[data-opengate],[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
+  const t = e.target.closest('[data-rvdesc],[data-music],[data-sound],[data-commod],[data-chartplayer],[data-rlmore],[data-rlpick],[data-skipgate],[data-payall],[data-alertpay],[data-alertlater],[data-rl],[data-spin],[data-sq],[data-term],[data-bondmax],[data-bondclear],[data-bondbuy],[data-flip],[data-ready],[data-opengate],[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
   if (!t) { if (e.target === $('overlay') && S.sheet?.type !== 'gate') closeSheet(); return; }
   if (t.dataset.go) { show(t.dataset.go); return; }
   if (t.dataset.term) { S.termPick[t.dataset.grp] = t.dataset.term; syncBondCard(S.data, S.data.room.status === 'running' && !(S.data.me.bills || []).length); return; }
@@ -2261,6 +2382,7 @@ document.addEventListener('click', async (e) => {
   }
   if (t.dataset.rvdesc) { const row = $('rvdesc' + t.dataset.rvdesc); row.classList.toggle('hidden'); t.classList.toggle('on', !row.classList.contains('hidden')); return; }
   if ('sound' in t.dataset) { setSound(!SFX.on); return; }
+  if ('music' in t.dataset) { setMusic(!MUSIC.on); return; }
   if (t.dataset.commod) { S.commodPick = t.dataset.commod; renderPlay(); return; }
   if (t.dataset.chartplayer) { S.chartPlayer = t.dataset.chartplayer; renderPlayerPills(S.data, S.data.reveal.startYear); return; }
   if ('rlmore' in t.dataset) { openSheet('roulette', 'table'); return; }

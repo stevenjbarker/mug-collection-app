@@ -99,7 +99,7 @@ export const GET = handle(async (request) => {
     const s = game.summarize(room, player, month);
     const row = { id, name: player.name, netWorth: s.netWorth, debt: s.debt, trades: player.trades };
     // Everyone's portfolio is shown only once the game is over.
-    if (over) Object.assign(row, { cash: s.cash, holdings: s.holdings, bills: s.bills, contributed: s.contributed, casino: s.casino });
+    if (over) Object.assign(row, { cash: s.cash, holdings: s.holdings, bills: s.bills, contributed: s.contributed, casino: s.casino, taxes: s.taxes });
     return row;
   });
   // The two computer players (games started after they existed).
@@ -107,7 +107,7 @@ export const GET = handle(async (request) => {
     for (const bot of game.BOTS) {
       const s = game.summarize(room, game.botAt(room, bot, month), month);
       const row = { id: bot.id, name: bot.name, bot: true, netWorth: s.netWorth, debt: s.debt, trades: 0 };
-      if (over) Object.assign(row, { cash: s.cash, holdings: s.holdings, bills: s.bills, contributed: s.contributed, casino: s.casino });
+      if (over) Object.assign(row, { cash: s.cash, holdings: s.holdings, bills: s.bills, contributed: s.contributed, casino: s.casino, taxes: s.taxes });
       board.push(row);
     }
   }
