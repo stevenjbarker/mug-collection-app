@@ -115,6 +115,7 @@
   .cpill{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg2);color:var(--cream);border-radius:9px;padding:5px 2px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
   .cpill.on{background:var(--gold);color:var(--ink);border-color:var(--ink);}
   .cbtns{display:flex;gap:6px;}
+  .taxwarn{font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted);margin-left:8px;font-size:.92em;}
   .rowlabel{margin:14px 0 8px;font-size:13px;font-weight:800;letter-spacing:.5px;color:#9dbbff;text-transform:uppercase;}
   .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:0 0 10px;}
   .lg::before{content:'';display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;}
@@ -633,7 +634,7 @@
     <div>
       <div class="legend"><span class="lg safe">Safe savings</span><span class="lg fund">Funds &amp; assets</span><span class="lg stock">Individual stocks</span><span class="lg gamble">Gambling</span></div>
       <div class="grid" id="invGrid"></div>
-      <div class="rowlabel" id="stockLabel">🏷️ Individual stocks</div>
+      <div class="rowlabel" id="stockLabel">🏷️ Individual stocks <span class="taxwarn">🧾 Selling at a profit is taxed: 22% if held under a year, 15% after</span></div>
       <div class="grid stockgrid" id="stockGrid"></div>
       <div class="grid" id="invGrid2" style="margin-top:8px;"></div>
     </div>
@@ -1083,6 +1084,7 @@ function forget(){
   store.del('stax:last');
   S = { ...S, role: null, code: null, player: null, token: null, hostKey: null, data: null, meV: -1, seenNews: null, lastPayIdx: null, seenUnlock: null, seenLog: null, gateShown: null, chartPlayer: null };
   alertQueue.length = 0; alertShown = null; $('alertScreen').classList.add('hidden');
+  stopMusic();
 }
 
 // ---------- render ----------
@@ -1090,7 +1092,7 @@ function render(){
   const d = S.data;
   if (!d) return;
   const status = d.room.status;
-  if (status === 'done') { stopPolling(); closeSheet(); alertQueue.length = 0; alertShown = null; $('alertScreen').classList.add('hidden'); renderResults(); show('results'); return; }
+  if (status === 'done') { stopPolling(); stopMusic(); closeSheet(); alertQueue.length = 0; alertShown = null; $('alertScreen').classList.add('hidden'); renderResults(); show('results'); return; }
   // A host who also plays sees the host lobby before the start, then the player screen.
   if (S.role === 'host' && (!S.player || status === 'lobby')) { renderHost(); return; }
   if (status === 'lobby') { renderLobby(); if ($('lobby').classList.contains('hidden')) show('lobby'); return; }
@@ -1425,6 +1427,7 @@ function musicStep(ctx, i, t){
 }
 function musicTick(){
   const ctx = SFX.ctx;
+  if (S.data?.room?.status === 'done') { stopMusic(); return; }
   if (!ctx || ctx.state !== 'running') return;
   if (!MUSIC.level && Date.now() > MUSIC.stopAt) { clearInterval(MUSIC.timer); MUSIC.timer = null; MUSIC.step = 0; return; }
   if (MUSIC.next < ctx.currentTime - 0.1) MUSIC.next = ctx.currentTime + 0.05; // after a stall, don't play catch-up
@@ -1441,6 +1444,7 @@ function syncMusic(){
   const want = SFX.on && MUSIC.on && playing ? (room.status === 'running' ? 0.42 : 0.16) : 0;
   const ctx = want ? audioReady() : SFX.ctx;
   if (!ctx) return;
+  if (room?.status === 'done' || !room) { if (MUSIC.timer || MUSIC.bus) stopMusic(); return; }
   if (want === MUSIC.level) return;
   if (want) {
     musicSetup(ctx);
@@ -1451,6 +1455,16 @@ function syncMusic(){
     MUSIC.bus.gain.setTargetAtTime(want, ctx.currentTime, 0.4);
   }
   MUSIC.level = want;
+}
+// Game over (or leaving the game): cut the music right away, including notes
+// already scheduled, rather than letting it fade.
+function stopMusic(){
+  clearInterval(MUSIC.timer);
+  MUSIC.timer = null; MUSIC.step = 0; MUSIC.level = 0;
+  if (MUSIC.bus) {
+    try { MUSIC.bus.gain.cancelScheduledValues(0); MUSIC.bus.gain.value = 0; MUSIC.bus.disconnect(); } catch {}
+    MUSIC.bus = null;
+  }
 }
 function setMusic(on){
   MUSIC.on = on;
