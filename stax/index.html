@@ -634,7 +634,7 @@
     <div>
       <div class="legend"><span class="lg safe">Safe savings</span><span class="lg fund">Funds &amp; assets</span><span class="lg stk">Individual stocks</span><span class="lg gamble">Gambling</span></div>
       <div class="grid" id="invGrid"></div>
-      <div class="rowlabel" id="stockLabel">🏷️ Individual stocks <span class="taxwarn">🧾 Selling at a profit is taxed: 22% if held under a year, 15% after</span></div>
+      <div class="rowlabel" id="stockLabel">🏷️ Individual stocks <span class="taxwarn">🧾 Selling at a profit is taxed at year end: 22% if held under a year, 15% after</span></div>
       <div class="grid stockgrid" id="stockGrid"></div>
       <div class="grid" id="invGrid2" style="margin-top:8px;"></div>
     </div>
@@ -650,6 +650,7 @@
       <div class="card">
         <h2>Where your money is</h2>
         <div class="mix" id="pMix"></div>
+        <div class="taxline" id="pTaxYear"></div>
       </div>
     </div>
   </div>
@@ -775,7 +776,7 @@ const INV = {
   cd:        { name: 'CD · 1 yr', icon: '🔐', risk: 'Very low risk', unlock: 12, rate: true, lessonKey: 'cds', lesson: CD_LESSON, term: 12 },
   cd36:      { name: 'CD · 3 yr', icon: '🔐', risk: 'Very low risk', unlock: 12, rate: true, lessonKey: 'cds', lesson: CD_LESSON, term: 36 },
   index:     { name: 'Index Fund', icon: '📈', risk: 'Medium risk', unlock: 24,
-    lesson: 'An index fund buys a tiny slice of the 500 biggest U.S. companies all at once. When one company stumbles, the others carry it. Some years it drops hard, but over long stretches it has grown more than almost anything else. One catch: when you sell something for more than you paid, you owe capital gains tax on the profit. Sell within a year and it\'s 22%; hold a year or longer and it drops to 15%.' },
+    lesson: 'An index fund buys a tiny slice of the 500 biggest U.S. companies all at once. When one company stumbles, the others carry it. Some years it drops hard, but over long stretches it has grown more than almost anything else. One catch: taxes. At the end of every year you get a tax bill. Profit from selling something you held under a year, and interest from savings, CDs and bonds, is taxed at 22%. Profit on things held a year or longer is taxed at only 15%. Losses lower the bill. When the game ends, everything you own is sold and the last taxes are paid, so your final score is cash in hand.' },
   stocks:    { name: 'Individual Stocks', icon: '🏷️', risk: 'High risk', unlock: 36,
     lesson: 'A share of stock is a piece of ownership in one company. If the company grows, so does your share. If it struggles, you can lose a lot. These are REAL companies with their names changed, and each game deals a different handful. Read the descriptions and decide who you believe in.' },
   b1:        { name: 'Gov. Bond · 1 mo', icon: '🏛️', risk: 'Very low risk', unlock: 60, rate: true, lessonKey: 'bonds', lesson: BOND_LESSON, term: 1 },
@@ -1162,6 +1163,7 @@ function announce(d){
     if (S.seenLog.has(l.id)) continue;
     S.seenLog.add(l.id);
     if (l.id.startsWith('o:')) { queueAlert({ kind: 'overdue', billId: l.id.slice(2), text: l.text }); sound('bad'); }
+    else if (l.id.startsWith('x:tax')) { queueAlert({ kind: 'tax', billId: l.id.slice(2) }); sound('bad'); }
     else toast((l.kind === 'bad' ? '🔥 ' : '🔓 ') + l.text, l.kind, 8000);
   }
   const m = Math.floor(d.room.month);
@@ -1286,7 +1288,18 @@ function renderAlert(){
   const bill = (me?.bills || []).find((b) => String(b.id) === String(a.billId));
   if (!bill) { nextAlert(); return; } // already paid
   const canPay = S.data.room.status === 'running' && me.cash >= bill.amount;
-  const head = a.kind === 'overdue' || bill.overdue
+  const t = bill.tax;
+  const taxLines = t ? [
+    t.short ? `${money(t.short)} short-term profit × 22%` : '',
+    t.interest ? `${money(t.interest)} interest × 22%` : '',
+    t.long ? `${money(t.long)} long-term profit × 15%` : '',
+  ].filter(Boolean).join('<br>') : '';
+  const head = t && !bill.overdue
+    ? `<div class="al-emoji">🧾</div><div class="al-kicker">Tax bill</div><h2 class="display">${esc(bill.title)}</h2>
+       <div class="al-amount">${money(bill.amount)}</div>
+       <p class="al-short">${taxLines}</p>
+       <p>Pay it within <b>3 months</b> or it starts charging credit card interest. You can't buy anything until it's paid.</p>`
+    : a.kind === 'overdue' || bill.overdue
     ? `<div class="al-emoji">🔥</div><div class="al-kicker">Bill overdue</div><h2 class="display">${esc(bill.title)}</h2>
        <div class="al-amount">${money(bill.amount)}</div>
        <p>You haven't paid this yet, so it's now charging <b>${bill.apr}%</b> interest (the average credit card rate) every month until you do.</p>`
@@ -1768,6 +1781,8 @@ function renderPlay(){
   setHtml($('pBoard'), boardHtml(d.leaderboard, { limit: 10 }));
   setHtml($('pNews'), newsHtml(d.news));
   try { setHtml($('pMix'), mixHtml(me)); } catch (err) { reportError(err, 'mix'); }
+  const ty = me.taxYear;
+  setHtml($('pTaxYear'), ty && ty.tax >= 1 ? `🧾 Taxes so far this year: <b>${money(ty.tax)}</b>, billed at year end` : '');
   announce(d);
   if (S.sheet) renderSheet();
   if (alertShown) renderAlert();
@@ -1956,10 +1971,10 @@ function renderLotSheet(id, fresh){
 // What selling everything right now would cost in capital gains tax.
 function taxHint(id, h){
   if (id === 'savings') return '';
-  if (!h || !(h.value > h.cost + 0.5)) return h ? '🧾 No tax if you sell now: no profit to tax.' : '🧾 Profits are taxed when you sell: 22% if held under a year, 15% after.';
+  if (!h || !(h.value > h.cost + 0.5)) return h ? '🧾 No tax if you sell now: no profit to tax.' : '🧾 Profits from selling are taxed at the end of the year: 22% if held under a year, 15% after.';
   const long = (h.held ?? 0) >= 12, rate = long ? 0.15 : 0.22;
   const left = 12 - (h.held ?? 0);
-  return `🧾 Selling it all now: about <b>${money((h.value - h.cost) * rate)}</b> tax (${long ? '15% long-term' : '22% short-term'} on ${money(h.value - h.cost)} profit).${long ? '' : ` Hold ${left} more month${left === 1 ? '' : 's'} and it drops to 15%.`}`;
+  return `🧾 Selling it all now adds about <b>${money((h.value - h.cost) * rate)}</b> to this year's tax bill (${long ? '15% long-term' : '22% short-term'} on ${money(h.value - h.cost)} profit).${long ? '' : ` Hold ${left} more month${left === 1 ? '' : 's'} and it drops to 15%.`}`;
 }
 
 async function doTrade(asset, side, amount, lot, shares){
@@ -1978,7 +1993,9 @@ async function doTrade(asset, side, amount, lot, shares){
   S.meV = r.data.me.v;
   // A sale that made a profit pays capital gains tax; say so with the trade's own message.
   const lt = r.data.me.lastTax;
-  S.taxNote = lt ? ` · 🧾 ${money(lt.tax)} tax (${Math.round(lt.rate * 100)}% ${lt.rate < 0.2 ? 'long-term' : 'short-term'} on ${money(lt.gain)} profit)` : '';
+  S.taxNote = !lt ? '' : lt.gain > 0
+    ? ` · 🧾 ${money(lt.gain)} profit adds about ${money(lt.gain * lt.rate)} to this year's tax bill (${Math.round(lt.rate * 100)}% ${lt.rate < 0.2 ? 'long-term' : 'short-term'})`
+    : ` · 🧾 ${money(-lt.gain)} loss lowers this year's taxes`;
   if ($('tradeError')) $('tradeError').textContent = '';
   return true;
 }
@@ -2098,7 +2115,7 @@ function renderResults(){
   const b = rv.benchmarks;
   const rows = [['Savings account', b.savings], ['Real estate', b.realestate], ['Gold', b.gold], ['Index fund', b.index]].filter((r) => r[1] != null);
   const max = Math.max(...rows.map((r) => r[1]), d.me?.netWorth || 0);
-  $('rBench').innerHTML = `<p class="muted" style="margin:0 0 8px;font-size:14px;">All ${money(rv.contributed)} of paychecks, invested the day they arrived (no surprise bills):</p>` +
+  $('rBench').innerHTML = `<p class="muted" style="margin:0 0 8px;font-size:14px;">All ${money(rv.contributed)} of paychecks, invested the day they arrived (no surprise bills or taxes):</p>` +
     rows.map(([label, v]) => `<div class="bench"><div class="bl">${label}</div><div class="bt"><div style="width:${(v / max * 100).toFixed(1)}%"></div></div><div class="bv">${money(v)}</div></div>`).join('') +
     (d.me ? `<div class="bench"><div class="bl"><b>You</b></div><div class="bt"><div style="width:${Math.max(0, d.me.netWorth / max * 100).toFixed(1)}%;background:var(--up);"></div></div><div class="bv">${money(d.me.netWorth)}</div></div>` : '');
   $('rTimeline').innerHTML = (rv.timeline || []).map((t) => `<li><div class="when">${esc(t.date)}</div><div><b>${esc(t.text)}</b></div>${t.game ? `<div class="muted" style="font-size:12.5px;">In the game: “${esc(t.game)}”</div>` : ''}</li>`).join('');
@@ -2242,8 +2259,25 @@ function renderCompareChart(c, startYear, meId){
 // What a player ended up holding, with real company names revealed.
 function holdingsHtml(me, rv){
   const rows = [];
+  // At the end everything is sold; show what each investment sold for.
+  const items = me.divested ? me.divested.map((x) => [x.id, x]) : Object.entries(me.holdings);
+  if (me.divested) {
+    const ft = me.finalTax?.tax || 0;
+    return `<table class="reveal" style="margin-top:14px;text-align:left;">
+      <tr><td><b>💵 Final cash</b> <span class="muted">(after selling everything and paying taxes)</span></td><td><b>${money(me.cash)}</b></td></tr>
+      ${items.sort((a, b) => b[1].value - a[1].value).map(([id, h]) => {
+        const stock = rv.stocks.find((x) => x.id === id);
+        const label = INV[id] ? `${INV[id].icon} ${INV[id].name}` : stock ? `🏷️ ${esc(stock.name)} <span class="muted">(${esc(stock.real)}${h.shares ? `, ${fmtShares(h.shares)} sh` : ''})</span>` : esc(id);
+        return `<tr><td>Sold ${label}</td><td>${money(h.value)}${h.cost ? ` <span class="${h.value >= h.cost ? 'up' : 'down'}" style="font-weight:600;">(${pct(h.value / h.cost - 1)})</span>` : ''}</td></tr>`;
+      }).join('')}
+      ${ft >= 0.01 ? `<tr><td>🧾 Final taxes</td><td class="down">${money(-ft)}</td></tr>` : ''}
+      ${me.taxes >= 1 ? `<tr><td>🧾 Taxes paid over the whole game</td><td class="down">${money(-me.taxes)}</td></tr>` : ''}
+      ${(me.bills || []).length ? `<tr><td>🔥 Unpaid bills</td><td class="down">${money(-me.bills.reduce((t, b) => t + b.amount, 0))}</td></tr>` : ''}
+      ${me.debt > 0 ? `<tr><td>💳 Credit card debt</td><td class="down">${money(-me.debt)}</td></tr>` : ''}
+    </table>`;
+  }
   if (me.cash >= 1) rows.push(['💵 Pocket cash', me.cash, null]);
-  for (const [id, h] of Object.entries(me.holdings)) {
+  for (const [id, h] of items) {
     const stock = rv.stocks.find((s) => s.id === id);
     const label = INV[id] ? `${INV[id].icon} ${INV[id].name}` : stock ? `🏷️ ${esc(stock.name)} <span class="muted">(${esc(stock.real)}${h.shares ? `, ${fmtShares(h.shares)} sh` : ''})</span>` : esc(id);
     rows.push([label, h.value, h.cost]);
@@ -2251,7 +2285,7 @@ function holdingsHtml(me, rv){
   if (me.debt > 0) rows.push(['💳 Credit card debt', -me.debt, null]);
   const owed = (me.bills || []).reduce((t, b) => t + b.amount, 0);
   if (owed > 0) rows.push(['🔥 Unpaid bills', -owed, null]);
-  if (me.taxes >= 1) rows.push(['🧾 Capital gains tax paid (already out of cash)', -me.taxes, null]);
+  if (me.taxes >= 1) rows.push(['🧾 Taxes charged over the game (already counted)', -me.taxes, null]);
   if (me.casino?.spins) rows.push([`🎰 Roulette (${me.casino.spins} spin${me.casino.spins === 1 ? '' : 's'}, already in cash)`, me.casino.net, null]);
   if (!rows.length) return '';
   rows.sort((a, b) => b[1] - a[1]);

@@ -42,8 +42,10 @@ A multiplayer classroom game: 20 real years of market history (somewhere
 between 1986 and 2025, revealed at the end), a $4,000 paycheck every 6 months,
 investments that unlock over time (savings, CDs, an index fund, 3–5 real
 companies under made-up names, 1-month/3-month/1-year government bonds, real
-estate, gold, and a roulette table for the last 3 years), surprise bills the player has to pay within 3 months, and a
-live leaderboard. The host can also play from the same tab. The pig button on the passcode screen opens it.
+estate, gold, and a roulette table for the last 3 years), surprise bills the player has to pay within 3 months, a
+yearly tax bill (sale profits at 22% short-term / 15% long-term, interest at 22%),
+and a live leaderboard. When the game ends, everyone's holdings are sold and the
+last taxes are paid, so final scores are cash. The host can also play from the same tab. The pig button on the passcode screen opens it.
 
 - **Hosting** needs its own passcode, `STAX_HOST_PASSCODE` (not the mug
   passcode). Players only need the 4-letter room code.

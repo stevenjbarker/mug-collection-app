@@ -368,6 +368,7 @@ function matureLots(p, month) {
     if (end <= month) {
       const value = round2(lotValue(lot, end));
       p.cashDelta += value;
+      taxYear(p).interest += value - lot.amount;
       note(p, `m:${lot.id}`, `${KIND_LABEL[lot.kind]} matured: +$${value.toLocaleString('en-US')} back in your pocket cash.`, 'good');
     } else keep.push(lot);
   }
@@ -414,24 +415,115 @@ export function settle(room, player, month) {
   const events = eventsFor(room, p);
   while (p.eventsDone < events.length && events[p.eventsDone].month <= month) {
     const e = events[p.eventsDone];
+    yearEndTaxes(room, p, e.month);
     matureLots(p, e.month);
     flagOverdueBills(room, p, e.month);
     if (e.amount > 0) p.cashDelta += e.amount;
     else p.bills.push({ id: p.eventsDone, title: e.title, amount: -e.amount, due: e.month + BILL_DUE });
     p.eventsDone++;
   }
+  yearEndTaxes(room, p, month);
   matureLots(p, month);
   flagOverdueBills(room, p, month);
   p.cashDelta = round2(p.cashDelta);
   return p;
 }
 
-// Capital gains tax on the profit when an investment is sold (savings is
-// exempt). Like the U.S.: held under a year it's taxed like a paycheck,
-// a year or longer at the lower long-term rate. Losses aren't taxed.
+// Taxes, settled once a year like the U.S. (simplified): profit from selling
+// something held under a year, and interest from savings, CDs and bonds, are
+// taxed like a paycheck (22%); profit on things held a year or longer at the
+// lower long-term rate (15%). A year's losses cancel out its gains. The total
+// arrives as a tax bill at the end of each game year.
 export const TAX_SHORT = 0.22;
 export const TAX_LONG = 0.15;
 export const TAX_LONG_MONTHS = 12;
+const TAX_INCOME = 0.22;
+
+function taxYear(p) {
+  return (p.ty ||= { short: 0, long: 0, interest: 0 });
+}
+
+// Savings interest earned since it was last counted (units grow in value).
+function accrueSavings(room, p, month) {
+  const from = p.savFrom ?? month;
+  const units = p.units.savings || 0;
+  if (units > 0 && month > from) taxYear(p).interest += units * (price(room, 'savings', month) - price(room, 'savings', from));
+  p.savFrom = month;
+}
+
+function taxDue(ty) {
+  let short = ty.short, long = ty.long;
+  if (short < 0) { long += short; short = 0; }
+  if (long < 0) { short += long; long = 0; }
+  short = Math.max(0, short); long = Math.max(0, long);
+  const interest = Math.max(0, ty.interest);
+  return { short: round2(short), long: round2(long), interest: round2(interest), tax: round2((short + interest) * TAX_SHORT + long * TAX_LONG) };
+}
+
+// The month the game finished: 240, or earlier if the host ended it.
+function endMonth(room) {
+  return room.status === 'done' && room.endedAt ? Math.min(GAME_MONTHS, Math.floor(gameMonth(room, room.endedAt))) : GAME_MONTHS;
+}
+
+// Game over: everyone sells everything at that month's prices (CDs and bonds
+// pay their full current value, no penalty), then the last year's taxes,
+// including all those profits, come straight out of cash.
+function finalSettle(room, p, end) {
+  p.finalDone = true;
+  matureLots(p, end);
+  accrueSavings(room, p, end);
+  const sold = [];
+  for (const asset of Object.keys(p.units)) {
+    const units = p.units[asset];
+    const value = round2(units * price(room, asset, end));
+    sold.push({ id: asset, value, cost: round2(p.cost[asset] || 0), ...(stockById(asset) ? { shares: Math.round(units * 1000) / 1000 } : {}) });
+    p.cashDelta += value;
+    sellUnits(p, asset, units, value, end);
+  }
+  for (const kind of Object.keys(TERMS)) {
+    const mine = p.lots.filter((l) => l.kind === kind);
+    if (!mine.length) continue;
+    let value = 0, cost = 0;
+    for (const l of mine) {
+      const v = lotValue(l, end);
+      value += v; cost += l.amount;
+      taxYear(p).interest += v - l.amount;
+    }
+    p.cashDelta += value;
+    sold.push({ id: kind, value: round2(value), cost: round2(cost) });
+  }
+  p.lots = [];
+  delete p.lastTax;
+  p.divested = sold;
+  const due = taxDue(taxYear(p));
+  p.ty = { short: 0, long: 0, interest: 0 };
+  p.finalTax = due;
+  if (due.tax >= 0.01) {
+    p.cashDelta -= due.tax;
+    p.taxes = round2((p.taxes || 0) + due.tax);
+  }
+  note(p, 'x:final', `Game over: everything was sold and your final taxes of $${due.tax.toLocaleString('en-US')} were paid from your cash.`, 'bad');
+}
+
+// End of each game year: total up the year and send the tax bill. At the end
+// of the game, everything is sold and the last taxes are paid on the spot.
+function yearEndTaxes(room, p, upTo) {
+  const end = endMonth(room);
+  for (let y = (p.taxDone || 0) + 1; y * 12 <= upTo && y * 12 < end; y++) {
+    const m = y * 12;
+    matureLots(p, m);
+    accrueSavings(room, p, m);
+    const due = taxDue(taxYear(p));
+    p.ty = { short: 0, long: 0, interest: 0 };
+    p.taxDone = y;
+    if (due.tax < 1) continue;
+    p.taxes = round2((p.taxes || 0) + due.tax);
+    const { tax, ...detail } = due;
+    p.bills.push({ id: `tax${y}`, title: `Year ${y} taxes`, amount: tax, due: m + BILL_DUE, tax: detail });
+    note(p, `x:tax${y}`, `Your Year ${y} tax bill is here: $${tax.toLocaleString('en-US')}.`, 'bad');
+  }
+  if (upTo >= end && !p.finalDone) finalSettle(room, p, end);
+}
 
 function addUnits(p, asset, units, cost, month) {
   const held = p.units[asset] || 0;
@@ -451,12 +543,10 @@ function sellUnits(p, asset, units, proceeds, month) {
   const heldMonths = month - (p.since?.[asset] ?? 0);
   if (p.units[asset] < 1e-9) { delete p.units[asset]; delete p.cost[asset]; if (p.since) delete p.since[asset]; }
   const gain = proceeds - basis;
-  if (asset === 'savings' || !(gain >= 0.005)) return;
-  const rate = heldMonths >= TAX_LONG_MONTHS - 1e-9 ? TAX_LONG : TAX_SHORT;
-  const tax = round2(gain * rate);
-  p.cashDelta -= tax;
-  p.taxes = round2((p.taxes || 0) + tax);
-  p.lastTax = { t: p.trades, tax, gain: round2(gain), rate };
+  if (asset === 'savings' || Math.abs(gain) < 0.005) return;
+  const long = heldMonths >= TAX_LONG_MONTHS - 1e-9;
+  taxYear(p)[long ? 'long' : 'short'] += gain;
+  p.lastTax = { t: p.trades, gain: round2(gain), rate: long ? TAX_LONG : TAX_SHORT };
 }
 
 export class TradeError extends Error {}
@@ -491,6 +581,8 @@ const SHORT = 'Not enough pocket cash.';
 // shares, 'max' (as many as cash allows) or 'all' (sell everything).
 export function trade(room, player, month, { asset, side, amount, lot, shares }) {
   const p = settle(room, player, month);
+  if (p.finalDone) throw new TradeError('The game is over.');
+  accrueSavings(room, p, month); // count interest so far before savings changes
   if (!isAvailable(room, asset, month)) throw new TradeError("That investment isn't available yet.");
   const cash = cashOf(p, month);
   const BILL_FIRST = 'Pay your bill first. Withdraw or sell something if you need the cash.';
@@ -545,7 +637,9 @@ export function trade(room, player, month, { asset, side, amount, lot, shares })
         // Cash out one specific lot (how CDs are broken).
         const l = mine.find((x) => x.id === lot);
         if (!l) throw new TradeError("You don't have that one.");
-        p.cashDelta += lotCashOut(l, month);
+        const out = lotCashOut(l, month);
+        p.cashDelta += out;
+        taxYear(p).interest += out - l.amount;
         p.lots = p.lots.filter((x) => x !== l);
       } else {
         if (TERMS[asset].penaltyMonths) throw new TradeError('Pick which CD to break.');
@@ -557,6 +651,7 @@ export function trade(room, player, month, { asset, side, amount, lot, shares })
           const v = lotValue(l, month);
           const take = Math.min(want, v);
           p.cashDelta += take;
+          taxYear(p).interest += take - l.amount * (take / v);
           want -= take;
           if (take >= v - 0.005) p.lots = p.lots.filter((x) => x !== l);
           else l.amount *= 1 - take / v;
@@ -627,12 +722,15 @@ export function summarize(room, player, month) {
   const bills = p.bills.map((b) => ({
     id: b.id, title: b.title, original: b.amount, amount: round2(billValue(room, b, month)), dueIn: b.due - month,
     overdue: b.due <= month, apr: b.due <= month ? Number((rateFor(room, 'card', month) * 100).toFixed(1)) : null,
+    ...(b.tax ? { tax: b.tax } : {}),
   }));
   const owed = bills.reduce((t, b) => t + b.amount, 0);
   const debt = round2(p.debtUnits * price(room, 'card', month));
   return {
     cash, debt, holdings, bills, log: p.log, casino: p.casino || null,
     taxes: p.taxes || 0, lastTax: p.lastTax && p.lastTax.t === p.trades - 1 ? p.lastTax : null,
+    taxYear: (accrueSavings(room, p, month), taxDue(taxYear(p))),
+    ...(p.finalDone ? { divested: p.divested, finalTax: p.finalTax } : {}),
     netWorth: round2(cash + invested - debt - owed),
     contributed: paychecks(month) * PAYCHECK,
   };
@@ -852,7 +950,7 @@ function botStep(room, p, m, kind) {
 // leaderboard asks for it on every update).
 const botCache = globalThis.__staxBots || (globalThis.__staxBots = new Map());
 export function botAt(room, bot, month, onMonth) {
-  const key = `${room.code}:${room.startedAt}:${bot.id}`;
+  const key = `${room.code}:${room.startedAt}:${room.endedAt || ''}:${bot.id}`;
   let c = !onMonth && botCache.get(key);
   if (!c || c.month > month) c = { month: -1, p: newPlayer(bot.id, bot.name, '') };
   for (let m = c.month + 1; m <= month; m++) {
