@@ -27,11 +27,15 @@ const STOCKS_PER_GAME = [3, 5];
 // back to pocket cash at maturity. CDs charge a penalty to cash out early;
 // government bonds can be sold any time at full value.
 export const TERMS = {
+  cd6: { term: 6, penaltyMonths: 3 },
   cd: { term: 12, penaltyMonths: 3 },
+  cd36: { term: 36, penaltyMonths: 6 },
   b1: { term: 1, penaltyMonths: 0 },
   b3: { term: 3, penaltyMonths: 0 },
   b12: { term: 12, penaltyMonths: 0 },
 };
+
+const CD_LESSON = 'A CD (certificate of deposit) is a deal with a bank: you lock your money up for 6 months, 1 year or 3 years and the bank pays a fixed interest rate, usually more than savings. Longer CDs usually pay more. When it matures, your money plus interest lands back in your pocket cash. Need it sooner? You can break it, but you pay a penalty: 3 months of interest (6 months on a 3-year CD).';
 
 const BOND_LESSON = 'A government bond is a loan to the U.S. government. You lend money for a set time — 1 month, 3 months, or 1 year — at the interest rate of the day you buy, and get it back with interest when it matures. Longer bonds usually pay more, but your money is tied up longer (you can sell early here without a penalty). Rates change over time, so watch them.';
 
@@ -40,10 +44,9 @@ export const INVESTMENTS = [
     id: 'savings', name: 'Savings Account', unlock: 0, risk: 'Very low',
     lesson: 'A savings account pays you a small amount of interest to hold your money, and you can deposit or withdraw any time. It is the home for your emergency fund: surprise bills have to be paid from pocket cash, so having savings to withdraw keeps you off the credit card.',
   },
-  {
-    id: 'cd', name: 'CDs', unlock: 12, risk: 'Very low',
-    lesson: 'A CD (certificate of deposit) is a deal with a bank: you lock your money up for one year and the bank pays a fixed interest rate, usually more than savings. When it matures, your money plus interest lands back in your pocket cash. Need it sooner? You can break it, but you pay a penalty of 3 months of interest.',
-  },
+  { id: 'cd6', name: 'CD · 6 months', unlock: 12, risk: 'Very low', lesson: CD_LESSON },
+  { id: 'cd', name: 'CD · 1 year', unlock: 12, risk: 'Very low', lesson: CD_LESSON },
+  { id: 'cd36', name: 'CD · 3 years', unlock: 12, risk: 'Very low', lesson: CD_LESSON },
   {
     id: 'index', name: 'Index Fund', unlock: 24, risk: 'Medium',
     lesson: 'An index fund buys a tiny slice of the 500 biggest U.S. companies at once. When one company stumbles, the others carry it. Some years it drops hard, but over long stretches it has grown more than almost anything else.',
@@ -351,7 +354,7 @@ function lotCashOut(lot, month) {
   return Math.max(0, lotValue(lot, month) - penalty);
 }
 
-const KIND_LABEL = { cd: 'A CD', b1: 'A 1-month bond', b3: 'A 3-month bond', b12: 'A 1-year bond' };
+const KIND_LABEL = { cd6: 'A 6-month CD', cd: 'A 1-year CD', cd36: 'A 3-year CD', b1: 'A 1-month bond', b3: 'A 3-month bond', b12: 'A 1-year bond' };
 
 function note(p, id, text, kind) {
   p.log = [...p.log, { id, text, kind }].slice(-8);
@@ -684,7 +687,7 @@ export function reveal(room, month = GAME_MONTHS) {
   for (let y = room.startYear; y < room.startYear + years; y++) inflation *= 1 + CPI[y - FIRST_YEAR];
   const stocks = roomStocks(room).filter((s) => stockListedMonth(room, s) < end && s.listed - k0 <= end).map((s) => {
     const lm = stockListedMonth(room, s);
-    return { id: s.id, name: nameIn(room, s), real: REAL_NAMES[s.ticker] || s.real || s.ticker, ticker: s.ticker, change: round2(price(room, s.id, end) / price(room, s.id, lm) - 1) };
+    return { id: s.id, name: nameIn(room, s), blurb: blurbFor(room, s), real: REAL_NAMES[s.ticker] || s.real || s.ticker, ticker: s.ticker, change: round2(price(room, s.id, end) / price(room, s.id, lm) - 1) };
   });
   // What really happened, with the real dates.
   const MONTH_NAMES_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -725,7 +728,7 @@ export function tradeLogEntry(month, req, before, after) {
 }
 
 const CHART_GROUPS = {
-  savings: 'savings', cd: 'safe', b1: 'safe', b3: 'safe', b12: 'safe',
+  savings: 'savings', cd6: 'safe', cd: 'safe', cd36: 'safe', b1: 'safe', b3: 'safe', b12: 'safe',
   index: 'index', realestate: 'realestate', gold: 'gold',
   oil: 'commod', coffee: 'commod', corn: 'commod', soy: 'commod', rice: 'commod',
 };

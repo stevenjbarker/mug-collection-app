@@ -140,12 +140,19 @@ async function main() {
     byMonth[v[0]] = rec;
   }
   const pick = (rec, ...keys) => { for (const k of keys) if (rec?.[k] != null) return rec[k]; return null; };
-  const rates = { cd: [], b1: [], b3: [], b12: [], card: [] };
+  const rates = { cd6: [], cd: [], cd36: [], b1: [], b3: [], b12: [], card: [] };
   for (let k = 0; k <= MONTHS; k++) {
     const y = FIRST_YEAR + Math.floor((k - 1) / 12);
     const m = ((k - 1) % 12 + 12) % 12 + 1;
     const rec = byMonth[`${y}-${String(m).padStart(2, '0')}`];
-    rates.cd.push(pick(rec, 'cd6m', 'tsy1y'));
+    // CDs: the Fed's real 6-month CD rate while it was published (to mid-2013).
+    // Longer CDs follow the Treasury yield of the same length plus that month's
+    // CD premium over Treasuries; once the CD series ends they track Treasuries.
+    const spread = rec?.cd6m != null && rec?.tsy6m != null ? Math.max(0, rec.cd6m - rec.tsy6m) : 0;
+    const cdFrom = (key) => (rec?.[key] != null ? rec[key] + spread : null);
+    rates.cd6.push(pick(rec, 'cd6m', 'tsy6m'));
+    rates.cd.push(cdFrom('tsy1y'));
+    rates.cd36.push(cdFrom('tsy3y'));
     rates.b1.push(pick(rec, 'tsy1m', 'tsy3m'));
     rates.b3.push(pick(rec, 'tsy3m', 'bill3m'));
     rates.b12.push(pick(rec, 'tsy1y'));

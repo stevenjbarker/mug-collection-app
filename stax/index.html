@@ -108,6 +108,7 @@
   .sqbtns{display:flex;gap:6px;}
   .sqbtns .qbtn{font-size:13px;}
   .bondcard{grid-column:span 2;}
+  .bondsum{display:none !important;}
   .commodcard{grid-column:span 2;}
   .commodcard .qa{flex-direction:column;gap:6px;}
   .cpills{display:flex;gap:4px;flex-wrap:wrap;}
@@ -247,6 +248,15 @@
   .lb li.me{color:var(--gold);font-weight:800;}
   .kick{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:0 4px;}
   .kick:hover{color:var(--down);}
+  .mix{display:flex;align-items:center;gap:14px;}
+  .mix svg{width:118px;height:118px;flex:none;}
+  .mix svg path{cursor:default;}
+  .mix ul{list-style:none;margin:0;padding:0;font-size:13px;flex:1;min-width:0;}
+  .mix li{display:flex;align-items:center;gap:6px;padding:2px 0;}
+  .mix li i{width:10px;height:10px;border-radius:3px;flex:none;}
+  .mix li span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .mix li b{font-variant-numeric:tabular-nums;}
+  .mix li em{font-style:normal;color:var(--muted);font-variant-numeric:tabular-nums;width:34px;text-align:right;}
   .news{list-style:none;margin:0;padding:0;font-size:14px;}
   .news li{padding:8px 0;border-bottom:1px solid var(--line);}
   .news li:last-child{border-bottom:none;}
@@ -284,19 +294,23 @@
   .big-emoji{font-size:44px;line-height:1;}
 
   /* ---------- toasts ---------- */
-  .alertscreen{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;padding:20px;
-    background:radial-gradient(circle at 50% 30%, #8f2a2e, #4a1416 70%);animation:alertin .25s ease;}
-  @keyframes alertin{from{opacity:0;transform:scale(1.04);}to{opacity:1;transform:none;}}
-  .al-box{max-width:520px;width:100%;text-align:center;color:#fff3ee;}
-  .al-emoji{font-size:72px;line-height:1;animation:shake .5s ease 2;}
+  /* Bill alert: a big red card over the dimmed game, not the whole screen. */
+  .alertscreen{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;padding:16px;
+    background:rgba(10,6,4,.55);animation:alertfade .2s ease;}
+  @keyframes alertfade{from{opacity:0;}to{opacity:1;}}
+  @keyframes alertin{from{opacity:0;transform:scale(.94);}to{opacity:1;transform:none;}}
+  .al-box{max-width:480px;width:100%;max-height:calc(100% - 8px);overflow:auto;text-align:center;color:#fff3ee;
+    background:radial-gradient(circle at 50% 20%, #9a2e32, #5a181b 80%);border:3px solid var(--ink);border-radius:22px;
+    box-shadow:0 6px 0 var(--ink), 0 18px 50px rgba(0,0,0,.5);padding:22px 22px 20px;animation:alertin .25s ease;}
+  .al-emoji{font-size:56px;line-height:1;animation:shake .5s ease 2;}
   @keyframes shake{0%,100%{transform:rotate(0);}25%{transform:rotate(-8deg);}75%{transform:rotate(8deg);}}
   .al-kicker{margin-top:10px;text-transform:uppercase;letter-spacing:3px;font-weight:800;font-size:14px;color:#ffb3a6;}
-  .al-box h2{font-size:34px;margin:6px 0 4px;line-height:1.15;}
-  .al-amount{font-size:56px;font-weight:900;font-variant-numeric:tabular-nums;color:#fff;text-shadow:0 3px 0 rgba(0,0,0,.35);margin:6px 0 10px;}
-  .al-box p{font-size:17px;line-height:1.45;margin:8px auto;max-width:440px;}
+  .al-box h2{font-size:28px;margin:6px 0 4px;line-height:1.15;}
+  .al-amount{font-size:48px;font-weight:900;font-variant-numeric:tabular-nums;color:#fff;text-shadow:0 3px 0 rgba(0,0,0,.35);margin:6px 0 10px;}
+  .al-box p{font-size:16px;line-height:1.45;margin:8px auto;max-width:440px;}
   .al-cash{margin:6px auto 4px;font-size:18px;background:rgba(0,0,0,.25);border-radius:12px;padding:8px 14px;display:inline-block;}
   .al-short{background:rgba(0,0,0,.25);border-radius:12px;padding:10px 14px;font-size:15px !important;}
-  .al-actions{display:flex;flex-direction:column;gap:10px;margin-top:18px;align-items:center;}
+  .al-actions{display:flex;flex-direction:column;gap:10px;margin-top:14px;align-items:center;}
   .al-pay{font-size:19px;padding:14px 28px;min-width:260px;}
   .al-later{color:#ffe1da;border-color:rgba(255,255,255,.35);min-width:260px;}
   .updatepill{position:fixed;bottom:calc(14px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:70;background:var(--gold);color:var(--ink);font-weight:800;font-size:14px;padding:8px 16px;border-radius:20px;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink);cursor:pointer;}
@@ -353,6 +367,9 @@
   .hlegend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:12.5px;}
   .hl{display:inline-flex;align-items:center;gap:6px;color:var(--muted);}
   .hl b{color:var(--cream);font-variant-numeric:tabular-nums;}
+  .qmark{width:20px;height:20px;border-radius:50%;border:1px solid var(--line);background:var(--bg2);color:var(--cream);font-size:11px;font-weight:800;line-height:1;cursor:pointer;padding:0;margin-left:4px;vertical-align:1px;}
+  .qmark.on{background:var(--gold);color:var(--ink);border-color:var(--ink);}
+  tr.rvdesc td{color:var(--muted);font-size:13px;font-weight:400 !important;text-align:left !important;padding-top:0;}
   .pf{border-bottom:1px solid var(--line);padding:8px 0;}
   .pf summary{cursor:pointer;display:flex;gap:8px;align-items:center;list-style:none;}
   .pf summary::-webkit-details-marker{display:none;}
@@ -429,7 +446,19 @@
     .pie{width:30px;height:30px;border-width:1px;} .pie span{display:none;}
     .pielabel .pv{display:inline;font-weight:800;}
     .pielabel{font-size:10px;text-align:left;color:var(--cream);}
-    /* bond card: stacked, so the term picker and buy row get the full width */
+    /* bond card: one slot on tablets; holdings as a one-line summary */
+    .bondcard{grid-column:span 1;}
+    .bondcard .lots{display:none !important;}
+    .bondsum{display:flex !important;}
+    .bondcard .cbody .row{display:flex;margin-right:0;}
+    .bondcard .terms{gap:3px;}
+    .bondcard .term{padding:3px 0;}
+    .bondcard .term b{font-size:12px;} .bondcard .term span{font-size:9px;}
+    .bondcard .apyrow .muted{font-size:10px;}
+    .bondcard .buyrow .maxb{padding:0 4px;font-size:10px;}
+    .bondcard .buyrow input{font-size:12px;padding:3px;}
+    .bondcard .buyrow .qbtn{flex-basis:40px;}
+    .bondcard .buyrow .clr{display:none;}
     .bondcard .cbody .row{display:inline-flex;gap:6px;margin-right:14px;}
     .bondcard .lots{justify-content:flex-start;}
     .bondcard .qa{margin-top:6px;}
@@ -579,10 +608,10 @@
     <div class="qtyline">
     <div class="qtybar" id="qtyBar">
       <span class="qlabel">Trade</span>
-      <button class="qty" data-qty="100">$100</button>
-      <button class="qty" data-qty="500">$500</button>
-      <button class="qty" data-qty="1000">$1K</button>
-      <button class="qty" data-qty="5000">$5K</button>
+      <button class="qty qstep" data-qty="100">$100</button>
+      <button class="qty qstep" data-qty="500">$500</button>
+      <button class="qty qstep" data-qty="1000">$1K</button>
+      <button class="qty qstep" data-qty="5000">$5K</button>
       <button class="qty" data-qty="all">All</button>
       <input class="qty-custom" id="qtyCustom" inputmode="decimal" enterkeyhint="done" placeholder="$ other" aria-label="Custom trade amount">
     </div>
@@ -610,6 +639,10 @@
       <div class="card">
         <h2>News</h2>
         <ul class="news" id="pNews"><li class="muted">Nothing yet.</li></ul>
+      </div>
+      <div class="card">
+        <h2>Where your money is</h2>
+        <div class="mix" id="pMix"></div>
       </div>
     </div>
   </div>
@@ -725,12 +758,15 @@ const money = (n, cents = false) => {
 const pct = (x) => (x >= 0 ? '+' : '−') + Math.abs(x * 100).toFixed(x !== 0 && Math.abs(x) < 0.1 ? 1 : 0) + '%';
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
+const CD_LESSON = 'A CD (certificate of deposit) is a deal with a bank: you lock your money up for 6 months, 1 year or 3 years and the bank pays a fixed interest rate, usually more than savings. Longer CDs usually pay more. When it matures, your money plus interest lands back in your pocket cash. Need it sooner? You can break it, but you pay a penalty: 3 months of interest (6 months on a 3-year CD).';
 const BOND_LESSON = 'A government bond is a loan to the U.S. government. You lend money for a set time (1 month, 3 months, or 1 year) at the interest rate of the day you buy, and get it back with interest when it matures. Longer bonds usually pay a bit more, but your money is tied up longer. You can sell early here with no penalty.';
 const INV = {
   savings:   { name: 'Savings Account', icon: '🏦', risk: 'Very low risk', unlock: 0,
     lesson: 'A savings account pays a small amount of interest, and you can deposit or withdraw any time. It is your emergency fund: surprise bills must be paid from pocket cash, so having savings to withdraw means you won’t have to sell investments at a bad time.' },
-  cd:        { name: 'CDs', icon: '🔐', risk: 'Very low risk', unlock: 12, rate: true,
-    lesson: 'A CD (certificate of deposit) is a deal with a bank: you lock your money up for one year and the bank pays a fixed interest rate, usually more than savings. When it matures, your money plus interest lands back in your pocket cash. Need it sooner? You can break it, but you pay a penalty of 3 months of interest.' },
+  cds:       { name: 'CDs', icon: '🔐', risk: 'Very low risk', unlock: 12, lessonKey: 'cds', lesson: CD_LESSON, choice: 'You can choose a 6-month, 1-year or 3-year CD.' },
+  cd6:       { name: 'CD · 6 mo', icon: '🔐', risk: 'Very low risk', unlock: 12, rate: true, lessonKey: 'cds', lesson: CD_LESSON, term: 6 },
+  cd:        { name: 'CD · 1 yr', icon: '🔐', risk: 'Very low risk', unlock: 12, rate: true, lessonKey: 'cds', lesson: CD_LESSON, term: 12 },
+  cd36:      { name: 'CD · 3 yr', icon: '🔐', risk: 'Very low risk', unlock: 12, rate: true, lessonKey: 'cds', lesson: CD_LESSON, term: 36 },
   index:     { name: 'Index Fund', icon: '📈', risk: 'Medium risk', unlock: 24,
     lesson: 'An index fund buys a tiny slice of the 500 biggest U.S. companies all at once. When one company stumbles, the others carry it. Some years it drops hard, but over long stretches it has grown more than almost anything else.' },
   stocks:    { name: 'Individual Stocks', icon: '🏷️', risk: 'High risk', unlock: 36,
@@ -756,9 +792,14 @@ const COMMODS = [
 for (const c of COMMODS) INV[c.id] = { name: c.name, icon: c.icon, risk: 'High risk', unlock: 132, lesson: COMMOD_LESSON, commodity: true, unit: c.unit };
 INV.roulette = { name: 'Roulette', icon: '🎰', risk: 'Gambling', unlock: 204,
   lesson: 'A roulette wheel has 38 pockets: 18 red, 18 black, plus 0 and 00 (green). Bet on red or black and you double your money if you win, but only 18 times in 38. Bet on 0 or 00 and you win 35 times your bet, but only 1 time in 38. Either way the casino keeps about 5 cents of every dollar bet over time. That is the house edge, and it is why casinos always make money.' };
-INV.bonds = { name: 'Government Bonds', icon: '🏛️', risk: 'Very low risk', unlock: 60, lessonKey: 'bonds', lesson: BOND_LESSON };
-const BOND_TERMS = [{ id: 'b1', n: 1, unit: 'Month' }, { id: 'b3', n: 3, unit: 'Months' }, { id: 'b12', n: 1, unit: 'Year' }];
-const ORDER = ['savings','cd','index','stocks','bonds','realestate','gold','commod','roulette'];
+INV.bonds = { name: 'Government Bonds', icon: '🏛️', risk: 'Very low risk', unlock: 60, lessonKey: 'bonds', lesson: BOND_LESSON, choice: 'You can choose a 1-month, 3-month or 1-year bond.' };
+// CDs and bonds each get one card with a length picker.
+const TERM_GROUPS = {
+  cds: { one: 'CD', many: 'CDs', terms: [{ id: 'cd6', n: 6, unit: 'Months' }, { id: 'cd', n: 1, unit: 'Year' }, { id: 'cd36', n: 3, unit: 'Years' }] },
+  bonds: { one: 'bond', many: 'bonds', terms: [{ id: 'b1', n: 1, unit: 'Month' }, { id: 'b3', n: 3, unit: 'Months' }, { id: 'b12', n: 1, unit: 'Year' }] },
+};
+const termInfo = (kind) => { for (const [g, grp] of Object.entries(TERM_GROUPS)) { const t = grp.terms.find((x) => x.id === kind); if (t) return { g, grp, t }; } return null; };
+const ORDER = ['savings','cds','index','stocks','bonds','realestate','gold','commod','roulette'];
 // Savings isn't bought and sold — it's deposited and withdrawn.
 const verbs = (id) => (id === 'savings' ? ['Deposit', 'Withdraw', 'Deposited', 'Withdrew'] : ['Buy', 'Sell', 'Bought', 'Sold']);
 const nameOf = (id) => INV[id]?.name || S.data?.market?.stocks.find((s) => s.id === id)?.name || 'that';
@@ -786,7 +827,7 @@ let S = {
   busy: false,
   flipped: new Set(),   // stock cards turned over to read the description
   shareQty: (() => { try { return JSON.parse(localStorage.getItem('stax:sq')) || {}; } catch { return {}; } })(), // per-stock share amount
-  bondTerm: 'b3',       // term picked on the Government Bonds card
+  termPick: { cds: 'cd', bonds: 'b3' }, // length picked on the CD and bond cards
   rlPick: 'red',        // roulette bet: red, black or 00
   commodPick: 'oil',    // commodity picked on the Commodities card
   spinning: false,
@@ -908,8 +949,8 @@ function spark(values, w = 200, h = 46, fill = true, trend = yearChange(values))
   return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${area}<path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`;
 }
 // One circle per CD or bond: fills up as it gets closer to paying out.
-const TERM_LABEL = { cd: '1 yr CD', b1: '1 mo', b3: '3 mo', b12: '1 yr' };
-const TERM_MONTHS = { cd: 12, b1: 1, b3: 3, b12: 12 };
+const TERM_LABEL = { cd6: '6 mo', cd: '1 yr', cd36: '3 yr', b1: '1 mo', b3: '3 mo', b12: '1 yr' };
+const TERM_MONTHS = { cd6: 6, cd: 12, cd36: 36, b1: 1, b3: 3, b12: 12 };
 function lotPies(lots, running){
   return lots.map((l) => {
     const term = TERM_MONTHS[l.kind];
@@ -1120,16 +1161,19 @@ function announce(d){
 
 // Parts of the bond card that change without rebuilding its buttons/input.
 function syncBondCard(d, canBuy){
-  const card = document.querySelector('.bondcard');
-  if (!card) return;
-  const a = (d.market?.assets || []).find((x) => x.id === S.bondTerm);
-  card.querySelectorAll('.term').forEach((b) => b.classList.toggle('on', b.dataset.term === S.bondTerm));
-  const t = BOND_TERMS.find((x) => x.id === S.bondTerm);
-  $('bondApy').textContent = a?.rate != null ? `${a.rate.toFixed(2)}% APY` : '';
-  $('bondLock').textContent = `locked for ${t.n} ${t.unit.toLowerCase()}`;
-  card.querySelector('[data-bondbuy]').disabled = !canBuy || S.busy;
-  card.querySelector('[data-bondmax]').disabled = !canBuy;
-  card.dataset.open = S.bondTerm;
+  for (const g of Object.keys(TERM_GROUPS)) {
+    const card = document.querySelector(`.bondcard[data-key="${g}"]`);
+    if (!card) continue;
+    const kind = S.termPick[g];
+    const a = (d.market?.assets || []).find((x) => x.id === kind);
+    card.querySelectorAll('.term').forEach((b) => b.classList.toggle('on', b.dataset.term === kind));
+    const t = termInfo(kind).t;
+    card.querySelector('.apy').textContent = a?.rate != null ? `${a.rate.toFixed(2)}% APY` : '';
+    card.querySelector('.lockfor').textContent = `locked for ${t.n} ${t.unit.toLowerCase()}`;
+    card.querySelector('[data-bondbuy]').disabled = !canBuy || S.busy;
+    card.querySelector('[data-bondmax]').disabled = !canBuy;
+    card.dataset.open = kind;
+  }
 }
 // Roulette bets: label, how much a win pays, and how many of the 38 pockets win.
 const RL_REDS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
@@ -1191,16 +1235,18 @@ async function spin(){
   toast(last.delta > 0 ? `🎰 ${last.label} ${last.color.toUpperCase()} — you won ${money(last.delta)}!` : `🎰 ${last.label} ${last.color.toUpperCase()} — you lost ${money(-last.delta)}.`, last.delta > 0 ? 'good' : 'bad', 3500);
   renderPlay();
 }
-async function buyBond(){
+async function buyBond(g){
   const me = S.data?.me;
-  const raw = $('bondAmt').value.replace(/[$,\s]/g, '');
+  const input = document.querySelector(`.bondamt[data-grp="${g}"]`);
+  const raw = input.value.replace(/[$,\s]/g, '');
   const want = Number(raw);
   if (!(want > 0)) { toast('Type an amount, or tap MAX.', 'bad'); return; }
   const amount = want >= me.cash - 0.005 ? 'all' : want;
-  const t = BOND_TERMS.find((x) => x.id === S.bondTerm);
-  if (await doTrade(S.bondTerm, 'buy', amount)) {
-    toast(`✅ Bought ${money(amount === 'all' ? me.cash : want)} of ${t.n}-${t.unit.toLowerCase().replace(/s$/, '')} bonds`, 'good', 3000);
-    $('bondAmt').value = '';
+  const kind = S.termPick[g];
+  const { grp, t } = termInfo(kind);
+  if (await doTrade(kind, 'buy', amount)) {
+    toast(`✅ ${g === 'cds' ? 'Opened' : 'Bought'} ${money(amount === 'all' ? me.cash : want)} of ${t.n}-${t.unit.toLowerCase().replace(/s$/, '')} ${grp.many}`, 'good', 3000);
+    input.value = '';
     renderPlay();
   } else toast(S.lastError || 'Could not buy.', 'bad');
 }
@@ -1327,10 +1373,16 @@ window.addEventListener('unhandledrejection', (e) => reportError(e.reason, 'prom
 // On tablets and laptops the game is scaled up as far as it can go while
 // still fitting on one screen, so a big iPad Pro gets big, readable cards.
 let fitKey = '', fitZoom = 1;
+// On a computer, browser zoom (⌘+ / ⌘−) changes devicePixelRatio. The fit is
+// worked out at the zoom the page settled on, then scaled by how far the
+// player has zoomed since, so their zoom isn't undone (the page scrolls instead).
+const MOUSE = matchMedia('(hover: hover) and (pointer: fine)').matches;
+let baseDpr = devicePixelRatio;
 function fitToScreen(force = false){
   const play = $('play');
   const on = !play.classList.contains('hidden') && innerWidth >= 700;
-  const key = [innerWidth, innerHeight, $('invGrid').children.length, $('stockGrid').children.length, $('invGrid2').children.length, (S.data?.me?.bills || []).length,
+  const userZoom = MOUSE ? devicePixelRatio / baseDpr : 1;
+  const key = [innerWidth, innerHeight, devicePixelRatio, $('invGrid').children.length, $('stockGrid').children.length, $('invGrid2').children.length, (S.data?.me?.bills || []).length,
     !$('hostBar').classList.contains('hidden'), !$('pPaused').classList.contains('hidden')].join('|');
   if (!on) { if (fitZoom !== 1) { document.body.style.zoom = ''; fitZoom = 1; } $('invGrid').style.gridTemplateColumns = ''; $('stockGrid').style.gridTemplateColumns = ''; $('invGrid2').style.gridTemplateColumns = ''; fitKey = ''; return; }
   if (!force && key === fitKey) return;
@@ -1355,7 +1407,7 @@ function fitToScreen(force = false){
   }
   grid.style.gridTemplateColumns = best.cols ? `repeat(${best.cols}, minmax(0, 1fr))` : '';
   $('stockGrid').style.gridTemplateColumns = $('invGrid2').style.gridTemplateColumns = grid.style.gridTemplateColumns;
-  fitZoom = Math.floor(best.z * 100) / 100;
+  fitZoom = Math.floor(best.z * userZoom * 100) / 100;
   document.body.style.zoom = fitZoom;
 }
 window.addEventListener('resize', () => fitToScreen(true));
@@ -1367,7 +1419,7 @@ window.addEventListener('orientationchange', () => setTimeout(() => fitToScreen(
 const gateItems = (month) => ORDER.filter((id) => INV[id].unlock === month);
 const gateTitle = (month) => {
   const ids = gateItems(month);
-  return ids.some((id) => INV[id].lessonKey === 'bonds') ? 'Government Bonds' : ids.map((id) => INV[id].name).join(' & ');
+  return ids.some((id) => id === 'bonds') ? 'Government Bonds' : ids.map((id) => INV[id].name).join(' & ');
 };
 function gateStatus(d){
   const g = d.room.gate;
@@ -1531,16 +1583,17 @@ function renderPlay(){
           <div class="cbtns"><button class="qbtn buy" data-quick="buy" data-asset="commod">Buy</button><button class="qbtn sell" data-quick="sell" data-asset="commod">Sell</button></div>` });
       return;
     }
-    if (id === 'bonds') {
-      // One card for all three bond lengths: pick a term, then buy below.
-      const lots = BOND_TERMS.flatMap((t) => (me.holdings[t.id]?.lots || []).map((l) => ({ ...l, kind: t.id })));
+    if (TERM_GROUPS[id]) {
+      // One card for every length (CDs or bonds): pick a term, then buy below.
+      const grp = TERM_GROUPS[id];
+      const lots = grp.terms.flatMap((t) => (me.holdings[t.id]?.lots || []).map((l) => ({ ...l, kind: t.id })));
       const total = { value: lots.reduce((x, l) => x + l.value, 0), cost: lots.reduce((x, l) => x + l.amount, 0) };
-      cards.push({ key: id, cls: 'inv bondcard', open: S.bondTerm,
-        html: `${badge}${head(inv.icon)}${moneyRows(lots.length ? total : null)}`,
+      cards.push({ key: id, cls: 'inv bondcard', open: S.termPick[id],
+        html: `${badge}${head(inv.icon)}${moneyRows(lots.length ? total : null)}${lots.length ? `<div class="row bondsum"><span class="muted">${lots.length} ${lots.length === 1 ? grp.one : grp.many}</span><span>next payout ${Math.min(...lots.map((l) => l.maturesIn))} mo</span></div>` : ''}`,
         sub: lotPies(lots, running),
-        actions: `<div class="terms">${BOND_TERMS.map((t) => `<button class="term" data-term="${t.id}"><b>${t.n}</b><span>${t.unit}</span></button>`).join('')}</div>
-          <div class="apyrow"><span class="apy" id="bondApy"></span><span class="muted" id="bondLock"></span></div>
-          <div class="buyrow"><button class="clr" data-bondclear aria-label="Clear">×</button><button class="maxb" data-bondmax>MAX</button><input id="bondAmt" inputmode="decimal" enterkeyhint="done" placeholder="$0.00" aria-label="Amount"><button class="qbtn buy" data-bondbuy>Buy</button></div>` });
+        actions: `<div class="terms">${grp.terms.map((t) => `<button class="term" data-term="${t.id}" data-grp="${id}"><b>${t.n}</b><span>${t.unit}</span></button>`).join('')}</div>
+          <div class="apyrow"><span class="apy"></span><span class="muted lockfor"></span></div>
+          <div class="buyrow"><button class="clr" data-bondclear="${id}" aria-label="Clear">×</button><button class="maxb" data-bondmax="${id}">MAX</button><input class="bondamt" data-grp="${id}" inputmode="decimal" enterkeyhint="done" placeholder="$0.00" aria-label="Amount"><button class="qbtn buy" data-bondbuy="${id}">${id === 'cds' ? 'Open' : 'Buy'}</button></div>` });
       return;
     }
     if (inv.rate) {
@@ -1551,10 +1604,7 @@ function renderPlay(){
         <div class="row"><span class="muted">Rate now</span><span class="mine">${a?.rate != null ? a.rate.toFixed(2) + '%' : '—'}</span></div>
         ${moneyRows(h)}
         <div class="row payrow" style="margin-top:3px;"><span class="muted">${next != null ? 'Next payout' : 'Locked for'}</span><span>${next != null ? next : inv.term || 12} mo</span></div>`,
-        sub: id === 'cd' ? lotPies((h?.lots || []).map((l) => ({ ...l, kind: 'cd' })), running) : null,
-        actions: id === 'cd'
-          ? `<button class="qbtn buy" data-quick="buy" data-asset="cd" ${off}>Buy</button><button class="qbtn sell" data-open="cd" ${h ? '' : 'disabled'}>Break…</button>`
-          : `<button class="qbtn buy" data-quick="buy" data-asset="${id}" ${off}>Buy</button><button class="qbtn sell" data-quick="sell" data-asset="${id}" ${h && running ? '' : 'disabled'}>Sell</button>` });
+        actions: `<button class="qbtn buy" data-quick="buy" data-asset="${id}" ${off}>Buy</button><button class="qbtn sell" data-quick="sell" data-asset="${id}" ${h && running ? '' : 'disabled'}>Sell</button>` });
       return;
     }
     const ch = yearChange(a?.history);
@@ -1573,12 +1623,12 @@ function renderPlay(){
     }
   }
   // Color-code by kind of product so stocks stand out from everything else.
-  const CAT = { savings: 'safe', cd: 'safe', bonds: 'safe', index: 'fund', realestate: 'fund', gold: 'fund', commod: 'fund', stocks: 'stock', roulette: 'gamble' };
+  const CAT = { savings: 'safe', cds: 'safe', bonds: 'safe', index: 'fund', realestate: 'fund', gold: 'fund', commod: 'fund', stocks: 'stock', roulette: 'gamble' };
   for (const c of cards) c.cls += ' cat-' + (CAT[c.key] || 'stock');
   // Individual stocks get a row of their own.
   // Row 1: savings & safe stuff; row 2: individual stocks; row 3: the rest.
   const isStockCard = (c) => !CAT[c.key] || c.key === 'stocks';
-  const TOP = new Set(['savings', 'cd', 'index', 'bonds']);
+  const TOP = new Set(['savings', 'cds', 'index', 'bonds']);
   patchList($('invGrid'), cards.filter((c) => TOP.has(c.key)));
   patchList($('stockGrid'), cards.filter(isStockCard));
   patchList($('invGrid2'), cards.filter((c) => !TOP.has(c.key) && !isStockCard(c)));
@@ -1588,6 +1638,7 @@ function renderPlay(){
 
   setHtml($('pBoard'), boardHtml(d.leaderboard, { limit: 10 }));
   setHtml($('pNews'), newsHtml(d.news));
+  try { setHtml($('pMix'), mixHtml(me)); } catch (err) { reportError(err, 'mix'); }
   announce(d);
   if (S.sheet) renderSheet();
   if (alertShown) renderAlert();
@@ -1628,13 +1679,12 @@ function renderSheet(fresh = false){
     if (!st || String(st.g.month) !== sh.id) { closeSheet(); return; }
     const ids = gateItems(st.g.month);
     if (fresh) {
-      const bonds = ids.some((id) => INV[id].lessonKey === 'bonds');
-      const shown = bonds ? [ids[0]] : ids;
+      const shown = ids;
       el.innerHTML = `<div class="big-emoji">${shown.map((id) => INV[id].icon).join(' ')}</div>
         <p class="muted" style="margin:10px 0 2px;text-transform:uppercase;letter-spacing:1px;font-size:12px;">${st.g.month === 0 ? 'Before we start' : 'Game paused · something new'}</p>
         <h3 class="display">${esc(gateTitle(st.g.month))}</h3>
         ${shown.map((id) => `<p class="lesson">${INV[id].lesson}</p>`).join('')}
-        ${bonds ? '<p class="lesson">You can choose a 1-month, 3-month or 1-year bond.</p>' : ''}
+        ${shown.filter((id) => INV[id].choice).map((id) => `<p class="lesson">${INV[id].choice}</p>`).join('')}
         <div id="gateStatus" class="muted" style="font-size:14px;margin:6px 0 12px;"></div>
         <div class="actions"><button class="btn" data-ready>I'm ready</button></div>
         <div class="actions hidden" id="gateHostRow" style="margin-top:8px;"><button class="btn ghost" data-skipgate>Host: start now without waiting</button></div>`;
@@ -1732,18 +1782,18 @@ function renderLotSheet(id, fresh){
   const d = S.data, el = $('sheet'), inv = INV[id];
   const a = (d.market?.assets || []).find((x) => x.id === id);
   if (!a?.unlocked) { closeSheet(); return; }
-  const isCd = id === 'cd';
+  const isCd = termInfo(id)?.g === 'cds';
   if (fresh) {
     el.innerHTML = `<button class="close" data-close>×</button>
       <div class="big-emoji">${inv.icon}</div>
-      <h3 class="display">${isCd ? 'CDs' : inv.name.replace('Gov.', 'Government')}</h3>
+      <h3 class="display">${isCd ? `${termInfo(id).t.n}-${termInfo(id).t.unit.toLowerCase().replace(/s$/, '')} CD` : inv.name.replace('Gov.', 'Government')}</h3>
       <div class="sheetmsg" id="sheetMsg"></div>
       <p class="lesson">${inv.lesson}</p>
       <div class="chart" id="tChart"></div>
       <div class="muted" style="font-size:12px;" id="tMonths"></div>
       <div class="facts">
         <div><div class="label">Rate now</div><div class="value" id="tPrice"></div></div>
-        <div><div class="label">Locked for</div><div class="value">${a.term === 12 ? '1 year' : a.term + ' mo'}</div></div>
+        <div><div class="label">Locked for</div><div class="value">${a.term === 12 ? '1 year' : a.term === 36 ? '3 years' : a.term + ' mo'}</div></div>
         <div><div class="label">You own</div><div class="value" id="tOwn"></div></div>
       </div>
       <div class="muted" style="font-size:14px;">Pocket cash: <b style="color:var(--cream);" id="tCash"></b></div>
@@ -1798,7 +1848,21 @@ function setQty(v){
   try { localStorage.setItem('stax:qty', S.qty); } catch {}
   syncQty();
 }
+// The preset trade amounts grow with your money, so late in the game the
+// buttons move meaningful amounts.
+function qtySteps(netWorth){
+  if (netWorth < 20000) return [100, 500, 1000, 5000];
+  if (netWorth < 100000) return [500, 1000, 5000, 10000];
+  if (netWorth < 500000) return [1000, 5000, 10000, 50000];
+  if (netWorth < 2000000) return [5000, 10000, 50000, 100000];
+  return [10000, 50000, 100000, 250000];
+}
+const stepLabel = (n) => (n >= 1000 ? `$${n / 1000}K` : `$${n}`);
 function syncQty(){
+  const steps = qtySteps(S.data?.me?.netWorth || 0);
+  document.querySelectorAll('.qstep').forEach((b, i) => {
+    if (b.dataset.qty !== String(steps[i])) { b.dataset.qty = String(steps[i]); b.textContent = stepLabel(steps[i]); }
+  });
   const preset = [...document.querySelectorAll('.qty')].some((b) => b.dataset.qty === S.qty);
   document.querySelectorAll('.qty').forEach((b) => b.classList.toggle('on', b.dataset.qty === S.qty));
   $('qtyCustom').classList.toggle('on', !preset);
@@ -1899,7 +1963,8 @@ function renderResults(){
   $('rInflation').textContent = `Prices also rose over ${rv.endYear === rv.startYear ? 'that year' : `those ${rv.endYear - rv.startYear + 1} years`}: something that cost $100 in ${rv.startYear} cost about ${money(100 * rv.inflation)} by ${rv.endYear}. That's why money sitting in your pocket slowly loses value.`;
   const stocks = [...rv.stocks].sort((a, b) => b.change - a.change);
   $('rStocksCard').classList.toggle('hidden', !stocks.length);
-  $('rStocks').innerHTML = stocks.map((s) => `<tr><td>${esc(s.name)}</td><td>was <b>${esc(s.real)}</b></td><td class="${s.change >= 0 ? 'up' : 'down'}">${pct(s.change)}</td></tr>`).join('');
+  $('rStocks').innerHTML = stocks.map((s, i) => `<tr><td>${esc(s.name)}${s.blurb ? ` <button class="qmark" data-rvdesc="${i}" aria-label="What this company did">?</button>` : ''}</td><td>was <b>${esc(s.real)}</b></td><td class="${s.change >= 0 ? 'up' : 'down'}">${pct(s.change)}</td></tr>`
+    + (s.blurb ? `<tr class="rvdesc hidden" id="rvdesc${i}"><td colspan="3">${esc(s.blurb)}</td></tr>` : '')).join('');
 }
 
 // ---------- results charts ----------
@@ -1915,6 +1980,32 @@ const HSERIES = [
   { key: 'gold', label: 'Gold', color: '#c98500' },
   { key: 'total', label: 'Total assets', color: '#f3ecd6', width: 3.5 },
 ];
+// Pie of where a player's money sits right now, same groups and colors as the results chart.
+const MIX_GROUP = (id) => (id === 'savings' ? 'savings' : TERM_MONTHS[id] ? 'safe' : ['index', 'realestate', 'gold'].includes(id) ? id : INV[id]?.commodity ? 'commod' : 'stocks');
+function mixHtml(me){
+  const sums = { cash: Math.max(0, me.cash) };
+  for (const [id, h] of Object.entries(me.holdings || {})) sums[MIX_GROUP(id)] = (sums[MIX_GROUP(id)] || 0) + h.value;
+  const parts = HSERIES.filter((x) => (sums[x.key] || 0) >= 0.5).map((x) => ({ ...x, v: sums[x.key] }));
+  const total = parts.reduce((t, x) => t + x.v, 0);
+  if (!(total > 0)) return '<div class="muted">Nothing yet.</div>';
+  const R = 50, r = 30, C = 60;
+  const pt = (a, rad) => `${(C + rad * Math.sin(a)).toFixed(2)} ${(C - rad * Math.cos(a)).toFixed(2)}`;
+  let a0 = 0;
+  const slices = parts.map((x) => {
+    const frac = x.v / total, a1 = a0 + frac * 2 * Math.PI;
+    const tip = `<title>${x.label}: ${money(x.v)} (${Math.round(frac * 100)}%)</title>`;
+    let path;
+    if (frac > 0.9999) path = `<circle cx="${C}" cy="${C}" r="${(R + r) / 2}" fill="none" stroke="${x.color}" stroke-width="${R - r}">${tip}</circle>`;
+    else {
+      const big = a1 - a0 > Math.PI ? 1 : 0;
+      path = `<path d="M${pt(a0, R)} A${R} ${R} 0 ${big} 1 ${pt(a1, R)} L${pt(a1, r)} A${r} ${r} 0 ${big} 0 ${pt(a0, r)} Z" fill="${x.color}" stroke="var(--panel)" stroke-width="2" stroke-linejoin="round">${tip}</path>`;
+    }
+    a0 = a1;
+    return path;
+  }).join('');
+  const legend = parts.sort((p, q) => q.v - p.v).map((x) => `<li><i style="background:${x.color}"></i><span>${x.label}</span><b>${shortMoney(x.v)}</b><em>${Math.round((x.v / total) * 100)}%</em></li>`).join('');
+  return `<svg viewBox="0 0 120 120" role="img" aria-label="Where your money is">${slices}</svg><ul>${legend}</ul>`;
+}
 const PLAYER_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181'];
 const shortMoney = (n) => (Math.abs(n) >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : Math.abs(n) >= 1e3 ? `$${Math.round(n / 1e3)}K` : `$${Math.round(n)}`);
 const monthName = (m, startYear) => { const k = m > 0 && m % 12 === 0 ? m - 1 : m; return `${MONTHS[k % 12].slice(0, 3)} ${startYear + Math.floor(k / 12)}`; };
@@ -2094,13 +2185,32 @@ $('playToo').addEventListener('submit', async (e) => {
   await poll();
 });
 $('tickerClose').addEventListener('click', resetTicker);
+// Dollar boxes show commas as you type (12500 → 12,500), keeping the cursor
+// after the same digit. Runs before each box's own input handler.
+function fmtAmt(v){
+  const [whole, frac] = String(v).replace(/[^\d.]/g, '').split('.');
+  const w = (whole || '').replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return frac === undefined ? w : `${w || '0'}.${frac.slice(0, 2)}`;
+}
+document.addEventListener('input', (e) => {
+  const el = e.target;
+  if (el.tagName !== 'INPUT' || el.inputMode !== 'decimal') return;
+  const pos = el.selectionStart ?? el.value.length;
+  const digitsBefore = el.value.slice(0, pos).replace(/[^\d.]/g, '').length;
+  const next = fmtAmt(el.value);
+  if (next === el.value) return;
+  el.value = next;
+  let i = 0, seen = 0;
+  while (i < next.length && seen < digitsBefore) { if (/[\d.]/.test(next[i])) seen++; i++; }
+  try { el.setSelectionRange(i, i); } catch {}
+}, true);
 $('qtyCustom').addEventListener('input', (e) => {
   const n = Number(e.target.value.replace(/[$,\s]/g, ''));
   if (n > 0) setQty(Math.round(n * 100) / 100);
 });
-$('qtyCustom').addEventListener('focus', (e) => { e.target.value = e.target.classList.contains('on') ? S.qty : ''; });
+$('qtyCustom').addEventListener('focus', (e) => { e.target.value = e.target.classList.contains('on') ? fmtAmt(S.qty) : ''; });
 $('qtyCustom').addEventListener('blur', syncQty);
-document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id === 'bondAmt') { e.target.blur(); buyBond(); } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.classList.contains('bondamt')) { e.target.blur(); buyBond(e.target.dataset.grp); } });
 $('qtyCustom').addEventListener('keydown', (e) => { if (e.key === 'Enter') e.target.blur(); });
 $('hbPause').addEventListener('click', () => hostOp(S.data?.room.status === 'paused' ? 'resume' : 'pause'));
 $('hbEnd').addEventListener('click', () => { if (confirm('End the game now for everyone?')) hostOp('end'); });
@@ -2114,13 +2224,13 @@ $('payDebtBtn').addEventListener('click', async () => {
 
 document.addEventListener('click', async (e) => {
   if (e.target.closest('input')) return; // typing in a box isn't a tap on its card
-  const t = e.target.closest('[data-sound],[data-commod],[data-chartplayer],[data-rlmore],[data-rlpick],[data-skipgate],[data-payall],[data-alertpay],[data-alertlater],[data-rl],[data-spin],[data-sq],[data-term],[data-bondmax],[data-bondclear],[data-bondbuy],[data-flip],[data-ready],[data-opengate],[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
+  const t = e.target.closest('[data-rvdesc],[data-sound],[data-commod],[data-chartplayer],[data-rlmore],[data-rlpick],[data-skipgate],[data-payall],[data-alertpay],[data-alertlater],[data-rl],[data-spin],[data-sq],[data-term],[data-bondmax],[data-bondclear],[data-bondbuy],[data-flip],[data-ready],[data-opengate],[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
   if (!t) { if (e.target === $('overlay') && S.sheet?.type !== 'gate') closeSheet(); return; }
   if (t.dataset.go) { show(t.dataset.go); return; }
-  if (t.dataset.term) { S.bondTerm = t.dataset.term; syncBondCard(S.data, S.data.room.status === 'running' && !(S.data.me.bills || []).length); return; }
-  if ('bondmax' in t.dataset) { $('bondAmt').value = (Math.floor(S.data.me.cash * 100) / 100).toFixed(2); return; }
-  if ('bondclear' in t.dataset) { $('bondAmt').value = ''; return; }
-  if ('bondbuy' in t.dataset) { buyBond(); return; }
+  if (t.dataset.term) { S.termPick[t.dataset.grp] = t.dataset.term; syncBondCard(S.data, S.data.room.status === 'running' && !(S.data.me.bills || []).length); return; }
+  if (t.dataset.bondmax) { document.querySelector(`.bondamt[data-grp="${t.dataset.bondmax}"]`).value = fmtAmt(Math.floor(S.data.me.cash * 100) / 100); return; }
+  if (t.dataset.bondclear) { document.querySelector(`.bondamt[data-grp="${t.dataset.bondclear}"]`).value = ''; return; }
+  if (t.dataset.bondbuy) { buyBond(t.dataset.bondbuy); return; }
   if (t.dataset.flip) {
     const id = t.dataset.flip;
     if (S.flipped.has(id)) S.flipped.delete(id); else S.flipped.add(id);
@@ -2149,6 +2259,7 @@ document.addEventListener('click', async (e) => {
     } else { t.disabled = false; toast(S.lastError || 'Could not pay.', 'bad'); }
     return;
   }
+  if (t.dataset.rvdesc) { const row = $('rvdesc' + t.dataset.rvdesc); row.classList.toggle('hidden'); t.classList.toggle('on', !row.classList.contains('hidden')); return; }
   if ('sound' in t.dataset) { setSound(!SFX.on); return; }
   if (t.dataset.commod) { S.commodPick = t.dataset.commod; renderPlay(); return; }
   if (t.dataset.chartplayer) { S.chartPlayer = t.dataset.chartplayer; renderPlayerPills(S.data, S.data.reveal.startYear); return; }
@@ -2183,7 +2294,7 @@ document.addEventListener('click', async (e) => {
   if (t.dataset.open) { openSheet(t.dataset.open === 'stocks' ? 'stocks' : 'trade', t.dataset.open); return; }
   if (t.dataset.amt) {
     const v = t.dataset.amt;
-    $('amt').value = v === 'all' ? Math.floor(S.data.me.cash * 100) / 100 : v;
+    $('amt').value = fmtAmt(v === 'all' ? Math.floor(S.data.me.cash * 100) / 100 : v);
     return;
   }
   if (t.dataset.shares) {
@@ -2206,8 +2317,9 @@ document.addEventListener('click', async (e) => {
     const kind = t.dataset.kind;
     const lot = S.data.me.holdings[kind]?.lots.find((l) => l.id === t.dataset.cashout);
     if (!lot) return;
-    if (kind === 'cd' && !confirm(`Break this CD early? You'll get ${money(lot.breakValue)} (3 months of interest is the penalty).`)) return;
-    if (kind !== 'cd' && !confirm(`Sell this bond now for ${money(lot.breakValue)}? (No penalty.)`)) return;
+    const cdKind = termInfo(kind)?.g === 'cds';
+    if (cdKind && !confirm(`Break this CD early? You'll get ${money(lot.breakValue)} (${kind === 'cd36' ? 6 : 3} months of interest is the penalty).`)) return;
+    if (!cdKind && !confirm(`Sell this bond now for ${money(lot.breakValue)}? (No penalty.)`)) return;
     if (await doTrade(kind, 'sell', null, lot.id)) { toast(`🔓 +${money(lot.breakValue)} to pocket cash`, 'good', 2500); renderPlay(); }
     else toast(S.lastError || 'Could not do that.', 'bad');
     return;
