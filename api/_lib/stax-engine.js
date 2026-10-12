@@ -675,6 +675,10 @@ export function market(room, month) {
 }
 
 // `player` adds that player's own bills and windfalls to the feed.
+// Tone of each headline, for its sound: good, mixed, or (everything else) bad.
+const GOOD_NEWS = new Set(['1986-02', '1987-08', '1989-11', '1991-03', '1995-08', '1999-12', '2020-08', '2023-06']);
+const MIXED_NEWS = new Set(['1987-12', '2010-05']);
+
 export function news(room, month, player) {
   const out = [];
   const k0 = startIndex(room);
@@ -684,7 +688,7 @@ export function news(room, month, player) {
   for (let m = 1; m <= month; m++) {
     const c = m - 1;
     const key = `${room.startYear + Math.floor(c / 12)}-${String((c % 12) + 1).padStart(2, '0')}`;
-    if (HEADLINES[key]) out.push({ month: m, kind: 'news', text: HEADLINES[key][0], at: c });
+    if (HEADLINES[key]) out.push({ month: m, kind: 'news', tone: GOOD_NEWS.has(key) ? 'good' : MIXED_NEWS.has(key) ? 'mixed' : 'bad', text: HEADLINES[key][0], at: c });
   }
   for (const s of roomStocks(room)) {
     const lm = s.listed - k0;
