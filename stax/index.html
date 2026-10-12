@@ -1438,11 +1438,13 @@ const MUSIC = {
   bus: null, noise: null, timer: null, step: 0, next: 0, level: 0, stopAt: 0,
 };
 const BPM = 128, STEP = 60 / BPM / 4; // sixteenth notes
-// The last two years build: tempo climbs from 128 to about 158 bpm by the final month.
+// The last two years should feel tense: at Year 19 the tempo steps up to
+// 140 bpm, then keeps accelerating (slowly, then faster) to about 185 bpm.
 function stepNow(){
   const m = S.data?.room?.month || 0;
-  const push = Math.max(0, Math.min(1, (m - 216) / 24));
-  return 60 / (BPM + push * 30) / 4;
+  if (m < 216) return 60 / BPM / 4;
+  const push = Math.min(1, (m - 216) / 24);
+  return 60 / (140 + 45 * Math.pow(push, 1.6)) / 4;
 }
 const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 // Bass root (MIDI) and chord tones for each bar of the 8-bar phrase.
