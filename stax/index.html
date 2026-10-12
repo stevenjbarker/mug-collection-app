@@ -1367,8 +1367,7 @@ function setSound(on){
 // ---------- soundtrack ----------
 // An original driving loop made on the fly with Web Audio (no audio files):
 // D minor at 128 bpm, i–VI–III–VII with a lift to A at the end of each phrase.
-// Kick, clap and hats, a pulsing bass and pads; an arpeggio joins every
-// other phrase. Plays only on the game screen, softer while paused.
+// Background level only. Plays on the game screen, softer while paused.
 const MUSIC = {
   on: (() => { try { return localStorage.getItem('stax:music') !== 'off'; } catch { return true; } })(),
   bus: null, noise: null, timer: null, step: 0, next: 0, level: 0, stopAt: 0,
@@ -1413,17 +1412,15 @@ function mNoise(ctx, t, { dur, vol, type = 'highpass', freq = 7000 }){
 function musicStep(ctx, i, t){
   const s16 = i % 16, bar = Math.floor(i / 16) % 8, phrase = Math.floor(i / 128);
   const [root, chord] = BARS[bar];
-  if (s16 % 4 === 0) mVoice(ctx, t, { freq: 150, slideTo: 42, type: 'sine', dur: 0.32, vol: 0.9, cutoff: 800 });
-  if (s16 === 4 || s16 === 12) mNoise(ctx, t, { dur: 0.16, vol: 0.32, type: 'bandpass', freq: 1800 });
-  if (s16 % 4 === 2) mNoise(ctx, t, { dur: 0.05, vol: 0.12 });
-  if (s16 % 2 === 0) mVoice(ctx, t, { freq: midi(root + (s16 % 8 === 6 ? 12 : 0)), dur: STEP * 1.8, vol: 0.32, cutoff: s16 % 4 === 0 ? 900 : 600 });
-  if (s16 === 0) for (const n of chord) for (const d of [-8, 8]) mVoice(ctx, t, { freq: midi(n), dur: STEP * 16, vol: 0.035, attack: 0.25, cutoff: 1400, detune: d });
-  if (phrase % 2 === 1 || bar >= 6) {
-    const n = chord[s16 % 3] + (s16 % 6 >= 3 ? 12 : 0);
-    mVoice(ctx, t, { freq: midi(n), type: 'square', dur: STEP * 0.9, vol: 0.035, cutoff: 3200 });
+  // Kept deliberately light: soft kick on 1 and 3, a pulsing bass, warm pads,
+  // and a quiet arpeggio only in every third phrase.
+  if (s16 === 0 || s16 === 8) mVoice(ctx, t, { freq: 120, slideTo: 45, type: 'sine', dur: 0.28, vol: 0.45, cutoff: 600 });
+  if (s16 % 4 === 0) mVoice(ctx, t, { freq: midi(root), dur: STEP * 3, vol: 0.22, attack: 0.02, cutoff: 500 });
+  if (s16 === 0) for (const n of chord) mVoice(ctx, t, { freq: midi(n), type: 'triangle', dur: STEP * 16, vol: 0.05, attack: 0.4, cutoff: 1200 });
+  if (phrase % 3 === 2 && s16 % 2 === 0) {
+    const n = chord[(s16 / 2) % 3] + 12;
+    mVoice(ctx, t, { freq: midi(n), type: 'triangle', dur: STEP * 1.5, vol: 0.03, cutoff: 2400 });
   }
-  // A short noise riser into the top of each phrase.
-  if (bar === 7 && s16 >= 12) mNoise(ctx, t, { dur: STEP, vol: 0.05 + (s16 - 12) * 0.04, freq: 3000 + (s16 - 12) * 1500 });
 }
 function musicTick(){
   const ctx = SFX.ctx;
@@ -1441,7 +1438,7 @@ function syncMusic(){
   document.querySelectorAll('.musicbtn').forEach((b) => { b.classList.toggle('off', !MUSIC.on); b.title = MUSIC.on ? 'Music on (tap to turn off)' : 'Music off (tap to turn on)'; });
   const room = S.data?.room;
   const playing = (!$('play').classList.contains('hidden') || !$('host').classList.contains('hidden')) && room && room.status !== 'done' && room.status !== 'lobby';
-  const want = SFX.on && MUSIC.on && playing ? (room.status === 'running' ? 0.42 : 0.16) : 0;
+  const want = SFX.on && MUSIC.on && playing ? (room.status === 'running' ? 0.22 : 0.08) : 0;
   const ctx = want ? audioReady() : SFX.ctx;
   if (!ctx) return;
   if (room?.status === 'done' || !room) { if (MUSIC.timer || MUSIC.bus) stopMusic(); return; }
