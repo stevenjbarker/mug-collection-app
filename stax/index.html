@@ -1378,6 +1378,12 @@ const MUSIC = {
   bus: null, noise: null, timer: null, step: 0, next: 0, level: 0, stopAt: 0,
 };
 const BPM = 128, STEP = 60 / BPM / 4; // sixteenth notes
+// The last two years build: tempo climbs from 128 to about 158 bpm by the final month.
+function stepNow(){
+  const m = S.data?.room?.month || 0;
+  const push = Math.max(0, Math.min(1, (m - 216) / 24));
+  return 60 / (BPM + push * 30) / 4;
+}
 const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 // Bass root (MIDI) and chord tones for each bar of the 8-bar phrase.
 const BARS = [
@@ -1415,16 +1421,17 @@ function mNoise(ctx, t, { dur, vol, type = 'highpass', freq = 7000 }){
   src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.05);
 }
 function musicStep(ctx, i, t){
+  const st = stepNow();
   const s16 = i % 16, bar = Math.floor(i / 16) % 8, phrase = Math.floor(i / 128);
   const [root, chord] = BARS[bar];
   // Kept deliberately light: soft kick on 1 and 3, a pulsing bass, warm pads,
   // and a quiet arpeggio only in every third phrase.
   if (s16 === 0 || s16 === 8) mVoice(ctx, t, { freq: 120, slideTo: 45, type: 'sine', dur: 0.28, vol: 0.45, cutoff: 600 });
-  if (s16 % 4 === 0) mVoice(ctx, t, { freq: midi(root), dur: STEP * 3, vol: 0.22, attack: 0.02, cutoff: 500 });
-  if (s16 === 0) for (const n of chord) mVoice(ctx, t, { freq: midi(n), type: 'triangle', dur: STEP * 16, vol: 0.05, attack: 0.4, cutoff: 1200 });
+  if (s16 % 4 === 0) mVoice(ctx, t, { freq: midi(root), dur: st * 3, vol: 0.22, attack: 0.02, cutoff: 500 });
+  if (s16 === 0) for (const n of chord) mVoice(ctx, t, { freq: midi(n), type: 'triangle', dur: st * 16, vol: 0.05, attack: 0.4, cutoff: 1200 });
   if (phrase % 3 === 2 && s16 % 2 === 0) {
     const n = chord[(s16 / 2) % 3] + 12;
-    mVoice(ctx, t, { freq: midi(n), type: 'triangle', dur: STEP * 1.5, vol: 0.03, cutoff: 2400 });
+    mVoice(ctx, t, { freq: midi(n), type: 'triangle', dur: st * 1.5, vol: 0.03, cutoff: 2400 });
   }
 }
 function musicTick(){
@@ -1435,7 +1442,7 @@ function musicTick(){
   if (MUSIC.next < ctx.currentTime - 0.1) MUSIC.next = ctx.currentTime + 0.05; // after a stall, don't play catch-up
   while (MUSIC.next < ctx.currentTime + 0.25) {
     musicStep(ctx, MUSIC.step++, MUSIC.next);
-    MUSIC.next += STEP;
+    MUSIC.next += stepNow();
   }
 }
 // Called on every render: starts, fades or stops the music to match the game.
