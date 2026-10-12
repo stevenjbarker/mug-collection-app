@@ -295,6 +295,7 @@
   .stock .nums{text-align:right;font-variant-numeric:tabular-nums;font-size:14px;white-space:nowrap;}
   .stock svg{width:70px;height:30px;flex:none;}
   .big-emoji{font-size:44px;line-height:1;}
+  svg.emo{width:1em;height:1em;vertical-align:-0.125em;display:inline-block;}
 
   /* ---------- toasts ---------- */
   /* Bill alert: a big red card over the dimmed game, not the whole screen. */
@@ -766,6 +767,8 @@ const money = (n, cents = false) => {
 const pct = (x) => (x >= 0 ? '+' : '−') + Math.abs(x * 100).toFixed(x !== 0 && Math.abs(x) < 0.1 ? 1 : 0) + '%';
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
+// 🪙 draws as a silver coin on Apple devices, so gold gets its own drawn coin.
+const GOLD_COIN = '<svg class="emo" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="#a87a12"/><circle cx="16" cy="16" r="13" fill="#e9b423"/><circle cx="16" cy="16" r="10" fill="none" stroke="#c99512" stroke-width="1.5"/><path d="M8.5 11.5a9 9 0 0 1 7-5" stroke="#fff3b0" stroke-width="2" fill="none" stroke-linecap="round"/><text x="16" y="21.5" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="15" fill="#8a6208">$</text></svg>';
 const CD_LESSON = 'A CD (certificate of deposit) is a deal with a bank: you lock your money up for 6 months, 1 year or 3 years and the bank pays a fixed interest rate, usually more than savings. Longer CDs usually pay more. When it matures, your money plus interest lands back in your pocket cash. Need it sooner? You can break it, but you pay a penalty: 3 months of interest (6 months on a 3-year CD).';
 const BOND_LESSON = 'A government bond is a loan to the U.S. government. You lend money for a set time (1 month, 3 months, or 1 year) at the interest rate of the day you buy, and get it back with interest when it matures. Longer bonds usually pay a bit more, but your money is tied up longer. You can sell early here with no penalty.';
 const INV = {
@@ -784,7 +787,7 @@ const INV = {
   b12:       { name: 'Gov. Bond · 1 yr', icon: '🏛️', risk: 'Low risk', unlock: 60, rate: true, lessonKey: 'bonds', lesson: BOND_LESSON, term: 12 },
   realestate:{ name: 'Real Estate', icon: '🏠', risk: 'Medium risk', unlock: 84,
     lesson: 'This tracks the price of U.S. homes. Real estate usually rises slowly with the economy, but when a housing bubble pops, prices can fall for years.' },
-  gold:      { name: 'Gold', icon: '🪙', risk: 'High risk', unlock: 108,
+  gold:      { name: 'Gold', icon: GOLD_COIN, risk: 'High risk', unlock: 108,
     lesson: 'Gold pays no interest and no dividends. Its price moves on fear and inflation: people rush to it when they are scared. It can sit still for a decade, then shoot up.' },
 };
 // Dashboard order; 'stocks' expands into one card per company once unlocked.
@@ -1287,7 +1290,7 @@ function renderAlert(){
   const me = S.data?.me;
   const bill = (me?.bills || []).find((b) => String(b.id) === String(a.billId));
   if (!bill) { nextAlert(); return; } // already paid
-  const canPay = S.data.room.status === 'running' && me.cash >= bill.amount;
+  const canPay = me.cash >= bill.amount; // bills can be paid even while the game is paused
   const t = bill.tax;
   const taxLines = t ? [
     t.short ? `${money(t.short)} short-term profit × 22%` : '',
@@ -1298,7 +1301,7 @@ function renderAlert(){
     ? `<div class="al-emoji">🧾</div><div class="al-kicker">Tax bill</div><h2 class="display">${esc(bill.title)}</h2>
        <div class="al-amount">${money(bill.amount)}</div>
        <p class="al-short">${taxLines}</p>
-       <p>Pay it within <b>3 months</b> or it starts charging credit card interest. You can't buy anything until it's paid.</p>`
+       <p>It's Tax Day: this is what you owe for last year. Pay it within <b>3 months</b> or it starts charging credit card interest. You can't buy anything until it's paid.</p>`
     : a.kind === 'overdue' || bill.overdue
     ? `<div class="al-emoji">🔥</div><div class="al-kicker">Bill overdue</div><h2 class="display">${esc(bill.title)}</h2>
        <div class="al-amount">${money(bill.amount)}</div>
@@ -1308,7 +1311,7 @@ function renderAlert(){
        <p>Pay it within <b>3 months</b> or it starts charging credit card interest. You can't buy anything until it's paid.</p>`;
   setHtml($('alertScreen'), `<div class="al-box">${head}
     <div class="al-cash">💵 You have <b>${money(me.cash)}</b> in pocket cash${me.holdings?.savings ? ` and <b>${money(me.holdings.savings.value)}</b> in savings` : ''}.</div>
-    ${canPay ? '' : `<p class="al-short">${S.data.room.status !== 'running' ? 'The game is paused.' : `You only have ${money(me.cash)} in pocket cash. Withdraw savings or sell something, then pay from the bill bar at the top.`}</p>`}
+    ${canPay ? '' : `<p class="al-short">You only have ${money(me.cash)} in pocket cash. Withdraw savings or sell something, then pay from the bill bar at the top.</p>`}
     <div class="al-actions">
       <button class="btn al-pay" data-alertpay="${bill.id}" ${canPay ? '' : 'disabled'}>Pay ${money(bill.amount)} now</button>
       <button class="btn ghost al-later" data-alertlater>${canPay ? 'Pay later' : 'OK, I\'ll find the cash'}</button>
@@ -1631,7 +1634,7 @@ function renderPlay(){
     html: b.overdue
       ? `<span>🔥 <b>${esc(b.title)}</b> <b class="down">OVERDUE</b> · now ${money(b.amount)} <s>${money(b.original)}</s><br><small>You haven't paid this yet, so it's charging ${b.apr}% interest (the average credit card rate) every month. ${me.cash < b.amount ? 'Withdraw savings or sell something, then pay.' : 'Pay it now. No buying until you do.'}</small></span>`
       : `<span>😬 <b>${esc(b.title)}</b> ${money(b.amount)} · ${b.dueIn <= 1 ? '<b class="down">due this month</b>' : `due in ${b.dueIn} months`}<br><small>${me.cash < b.amount ? 'Not enough cash: withdraw savings or sell something, then pay.' : 'Pay it before you can buy anything.'} If it's not paid by the due date, it starts charging credit card interest.</small></span>`,
-    actions: `<button class="qbtn buy" data-paybill="${b.id}" ${running && me.cash >= b.amount ? '' : 'disabled'}>Pay</button>`,
+    actions: `<button class="qbtn buy" data-paybill="${b.id}" ${me.cash >= b.amount ? '' : 'disabled'}>Pay</button>`,
   }));
   if (allBills.length > 1) {
     const rest = allBills.slice(1);
@@ -1640,7 +1643,7 @@ function renderPlay(){
     billRows.push({
       key: 'billmore', cls: 'bill',
       html: `<span>➕ <b>${rest.length} more unpaid bill${rest.length === 1 ? '' : 's'}</b> · ${money(restTotal)}${rest.some((b) => b.overdue) ? ' <b class="down">(some overdue)</b>' : ''}</span>`,
-      actions: `<button class="qbtn buy" data-payall ${running && me.cash >= allTotal ? '' : 'disabled'} title="${money(allTotal)} for all ${allBills.length}">Pay all</button>`,
+      actions: `<button class="qbtn buy" data-payall ${me.cash >= allTotal ? '' : 'disabled'} title="${money(allTotal)} for all ${allBills.length}">Pay all</button>`,
     });
   }
   patchList($('billsBar'), billRows);
@@ -1782,7 +1785,7 @@ function renderPlay(){
   setHtml($('pNews'), newsHtml(d.news));
   try { setHtml($('pMix'), mixHtml(me)); } catch (err) { reportError(err, 'mix'); }
   const ty = me.taxYear;
-  setHtml($('pTaxYear'), ty && ty.tax >= 1 ? `🧾 Taxes so far this year: <b>${money(ty.tax)}</b>, billed at year end` : '');
+  setHtml($('pTaxYear'), ty && ty.tax >= 1 ? `🧾 Taxes so far this year: <b>${money(ty.tax)}</b>, billed on Tax Day next April` : '');
   announce(d);
   if (S.sheet) renderSheet();
   if (alertShown) renderAlert();
@@ -2262,7 +2265,7 @@ function holdingsHtml(me, rv){
   // At the end everything is sold; show what each investment sold for.
   const items = me.divested ? me.divested.map((x) => [x.id, x]) : Object.entries(me.holdings);
   if (me.divested) {
-    const ft = me.finalTax?.tax || 0;
+    const ft = (me.finalTax?.tax || 0) + (me.finalTax?.lastYear || 0);
     return `<table class="reveal" style="margin-top:14px;text-align:left;">
       <tr><td><b>💵 Final cash</b> <span class="muted">(after selling everything and paying taxes)</span></td><td><b>${money(me.cash)}</b></td></tr>
       ${items.sort((a, b) => b[1].value - a[1].value).map(([id, h]) => {

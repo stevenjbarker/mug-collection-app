@@ -229,7 +229,10 @@ export const POST = handle(async (request) => {
 
   if (body.action === 'trade') {
     const pub = publicRoom(room, now);
-    if (pub.status !== 'running') {
+    // Paying a bill or card debt is allowed while paused (prices are frozen,
+    // so it can't be used to get ahead), so nobody gets stuck at an unlock.
+    const payingDebt = (body.asset === 'bill' || body.asset === 'card') && body.side === 'pay';
+    if (pub.status !== 'running' && !(pub.status === 'paused' && payingDebt)) {
       return json({ error: pub.status === 'paused' ? 'The game is paused.' : pub.status === 'done' ? 'The game is over.' : "The game hasn't started yet." }, 400);
     }
     const month = Math.floor(pub.month);

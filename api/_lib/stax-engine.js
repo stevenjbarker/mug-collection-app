@@ -208,6 +208,10 @@ const startIndex = (room) => (room.startYear - FIRST_YEAR) * 12;
 
 // Each player gets the room's same set of surprises (so totals stay fair),
 // but in their own random order and at their own times.
+const notJanuary = (m) => (m % 12 === 0 ? m + 1 : m);
+// A bill is due 3 months after it arrives, but never in January either.
+const dueFrom = (m) => notJanuary(m + BILL_DUE);
+
 export function eventsFor(room, player) {
   if (!room.personalEvents || !player) return room.events;
   let h = 2166136261;
@@ -221,7 +225,8 @@ export function eventsFor(room, player) {
   const bills = shuffle(room.events.filter((e) => e.amount < 0));
   const gifts = shuffle(room.events.filter((e) => e.amount > 0));
   const out = [
-    ...bills.map((e, i) => ({ ...e, month: 14 + i * 32 + Math.floor(r() * 18) })),
+    // Never in January: that's when new investments unlock and the game pauses.
+    ...bills.map((e, i) => ({ ...e, month: notJanuary(14 + i * 32 + Math.floor(r() * 18)) })),
     ...gifts.map((e, i) => ({ ...e, month: 40 + i * 110 + Math.floor(r() * 40) })),
   ];
   return out.sort((a, b) => a.month - b.month);
@@ -419,7 +424,7 @@ export function settle(room, player, month) {
     matureLots(p, e.month);
     flagOverdueBills(room, p, e.month);
     if (e.amount > 0) p.cashDelta += e.amount;
-    else p.bills.push({ id: p.eventsDone, title: e.title, amount: -e.amount, due: e.month + BILL_DUE });
+    else p.bills.push({ id: p.eventsDone, title: e.title, amount: -e.amount, due: dueFrom(e.month) });
     p.eventsDone++;
   }
   yearEndTaxes(room, p, month);
@@ -497,18 +502,36 @@ function finalSettle(room, p, end) {
   p.divested = sold;
   const due = taxDue(taxYear(p));
   p.ty = { short: 0, long: 0, interest: 0 };
+  if (p.pendingTax) {
+    // Last year's bill hadn't arrived yet: it's settled now too (already counted in p.taxes).
+    p.cashDelta -= p.pendingTax.tax;
+    due.lastYear = p.pendingTax.tax;
+    delete p.pendingTax;
+  }
   p.finalTax = due;
   if (due.tax >= 0.01) {
     p.cashDelta -= due.tax;
     p.taxes = round2((p.taxes || 0) + due.tax);
   }
-  note(p, 'x:final', `Game over: everything was sold and your final taxes of $${due.tax.toLocaleString('en-US')} were paid from your cash.`, 'bad');
+  const total = round2(due.tax + (due.lastYear || 0));
+  note(p, 'x:final', `Game over: everything was sold and your final taxes of $${total.toLocaleString('en-US')} were paid from your cash.`, 'bad');
 }
 
-// End of each game year: total up the year and send the tax bill. At the end
-// of the game, everything is sold and the last taxes are paid on the spot.
+const TAX_DAY = 3; // the bill for a year arrives in April of the next one
+
+// Sends a year's tax bill on Tax Day.
+function sendTaxBill(p, pending) {
+  const { y, tax, ...detail } = pending;
+  p.bills.push({ id: `tax${y}`, title: `Year ${y} taxes`, amount: tax, due: dueFrom(y * 12 + TAX_DAY), tax: detail });
+  note(p, `x:tax${y}`, `Tax Day: your Year ${y} tax bill is here: $${tax.toLocaleString('en-US')}.`, 'bad');
+}
+
+// End of each game year: total up the year; its bill arrives on Tax Day in
+// April. At the end of the game, everything is sold and the last taxes
+// (including any bill not sent yet) are paid on the spot.
 function yearEndTaxes(room, p, upTo) {
   const end = endMonth(room);
+  if (p.pendingTax && p.pendingTax.y * 12 + TAX_DAY <= Math.min(upTo, end - 1)) { sendTaxBill(p, p.pendingTax); delete p.pendingTax; }
   for (let y = (p.taxDone || 0) + 1; y * 12 <= upTo && y * 12 < end; y++) {
     const m = y * 12;
     matureLots(p, m);
@@ -518,9 +541,8 @@ function yearEndTaxes(room, p, upTo) {
     p.taxDone = y;
     if (due.tax < 1) continue;
     p.taxes = round2((p.taxes || 0) + due.tax);
-    const { tax, ...detail } = due;
-    p.bills.push({ id: `tax${y}`, title: `Year ${y} taxes`, amount: tax, due: m + BILL_DUE, tax: detail });
-    note(p, `x:tax${y}`, `Your Year ${y} tax bill is here: $${tax.toLocaleString('en-US')}.`, 'bad');
+    p.pendingTax = { y, ...due };
+    if (m + TAX_DAY <= Math.min(upTo, end - 1)) { sendTaxBill(p, p.pendingTax); delete p.pendingTax; }
   }
   if (upTo >= end && !p.finalDone) finalSettle(room, p, end);
 }
