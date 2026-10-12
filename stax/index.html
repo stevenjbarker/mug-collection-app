@@ -541,6 +541,7 @@
       <li>The game runs through 20 real years of market history. Which years? You'll find out at the end.</li>
       <li>Every 6 months you get a <b style="color:var(--cream);">$4,000 paycheck</b> to invest.</li>
       <li>New investments unlock as the years go by.</li>
+      <li>Two computer players play too: <b style="color:var(--cream);">Steady Eddy</b> puts every paycheck in the index fund, and <b style="color:var(--cream);">Rebalance Rick</b> spreads his money evenly across the stocks and rebalances every year. Can you beat them?</li>
       <li>Life happens: surprise bills show up and you can't buy anything until they're paid. Miss the 3-month due date and the bill starts charging credit card interest every month.</li>
     </ul>
   </div>
@@ -1045,7 +1046,7 @@ function boardHtml(board, opts = {}){
   }
   return rows.map((p) => `<li class="${p.id === meId ? 'me' : ''}">
       <span class="rank">${p.rank}</span>
-      <span class="who">${esc(p.name)}${p.debt > 0 ? ' <span class="down" title="Credit card debt">💳</span>' : ''}</span>
+      <span class="who">${esc(p.name)}${p.bot ? ' <span title="Computer player">🤖</span>' : ''}${p.debt > 0 ? ' <span class="down" title="Credit card debt">💳</span>' : ''}</span>
       <span>${money(p.netWorth)}</span>
       ${opts.kick ? `<button class="kick" title="Remove player" data-kick="${esc(p.id)}">×</button>` : ''}
     </li>`).join('');
@@ -1778,7 +1779,7 @@ function renderResults(){
   renderCompareChart(d.compare, rv.startYear, d.me?.id);
   $('rBoard').innerHTML = boardHtml(board);
   $('rAll').innerHTML = board.map((p, i) => `<details class="pf"${d.me?.id === p.id || i < 3 ? ' open' : ''}>
-      <summary><span class="rank">${['🥇','🥈','🥉'][i] || '#' + (i + 1)}</span> <b>${esc(p.name)}</b><span class="pfnw">${money(p.netWorth)}</span></summary>
+      <summary><span class="rank">${['🥇','🥈','🥉'][i] || '#' + (i + 1)}</span> <b>${esc(p.name)}${p.bot ? ' 🤖' : ''}</b><span class="pfnw">${money(p.netWorth)}</span></summary>
       ${p.holdings ? holdingsHtml(p, rv) || '<p class="muted" style="margin:6px 0;">Nothing left.</p>' : ''}
     </details>`).join('');
   $('rAllCard').classList.toggle('hidden', !board.length);
@@ -1868,7 +1869,7 @@ function renderPlayerPills(d, startYear){
   const meId = d.me?.id;
   const order = [...c.players].sort((a, b) => (a.id === meId ? -1 : b.id === meId ? 1 : b.total[last] - a.total[last]));
   S.chartPlayer ||= meId || order[0].id;
-  box.innerHTML = order.map((p) => `<button class="pill${p.id === S.chartPlayer ? ' on' : ''}" data-chartplayer="${esc(p.id)}">${p.id === meId ? 'You' : esc(p.name)}</button>`).join('');
+  box.innerHTML = order.map((p) => `<button class="pill${p.id === S.chartPlayer ? ' on' : ''}" data-chartplayer="${esc(p.id)}">${p.id === meId ? 'You' : esc(p.name) + (p.bot ? ' 🤖' : '')}</button>`).join('');
   const who = c.players.find((p) => p.id === S.chartPlayer) || order[0];
   $('rChartTitle').textContent = who.id === meId ? 'Your money over time' : `${who.name}'s money over time`;
   renderHistoryChart({ months: c.months, series: who.series }, startYear);
@@ -1892,7 +1893,7 @@ function renderCompareChart(c, startYear, meId){
   const ranked = [...c.players].sort((a, b) => b.total[last] - a.total[last]);
   // Top 5 get colors; you always stand out; everyone else is a thin gray line.
   const lines = ranked.map((p, r) => r < PLAYER_COLORS.length
-    ? { label: p.id === meId ? `${p.name} (you)` : p.name, color: PLAYER_COLORS[r], vals: p.total, width: p.id === meId ? 3.5 : 2 }
+    ? { label: p.id === meId ? `${p.name} (you)` : p.name + (p.bot ? ' 🤖' : ''), color: PLAYER_COLORS[r], vals: p.total, width: p.id === meId ? 3.5 : 2, dash: p.bot }
     : p.id === meId ? { label: `${p.name} (you)`, color: '#f3ecd6', vals: p.total, width: 3, dash: true }
     : { label: p.name, color: '#5d6e60', vals: p.total, quiet: true });
   lineChart($('rCompare'), $('rCompareLegend'), c.months, lines, startYear);

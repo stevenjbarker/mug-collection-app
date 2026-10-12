@@ -101,7 +101,17 @@ export const GET = handle(async (request) => {
     // Everyone's portfolio is shown only once the game is over.
     if (over) Object.assign(row, { cash: s.cash, holdings: s.holdings, bills: s.bills, contributed: s.contributed, casino: s.casino });
     return row;
-  }).sort((a, b) => b.netWorth - a.netWorth);
+  });
+  // The two computer players (games started after they existed).
+  if (room.gatesDone && pub.status !== 'lobby') {
+    for (const bot of game.BOTS) {
+      const s = game.summarize(room, game.botAt(room, bot, month), month);
+      const row = { id: bot.id, name: bot.name, bot: true, netWorth: s.netWorth, debt: s.debt, trades: 0 };
+      if (over) Object.assign(row, { cash: s.cash, holdings: s.holdings, bills: s.bills, contributed: s.contributed, casino: s.casino });
+      board.push(row);
+    }
+  }
+  board.sort((a, b) => b.netWorth - a.netWorth);
 
   // Which deploy answered, so open pages can tell when to reload.
   const build = (process.env.VERCEL_GIT_COMMIT_SHA || process.env.VERCEL_DEPLOYMENT_ID || 'dev').slice(0, 12);
@@ -122,13 +132,18 @@ export const GET = handle(async (request) => {
             hist.months = h.months;
             hist.players[id] = { name: player.name, series: h.series };
           }
+          for (const bot of game.BOTS) {
+            const h = game.botHistory(room, bot, month);
+            hist.months ||= h.months;
+            hist.players[bot.id] = { name: bot.name, bot: true, series: h.series };
+          }
           await store.saveRoomHistory(code, hist);
         }
         if (me && hist.players[me.id]) body.history = { months: hist.months, series: hist.players[me.id].series };
         body.compare = {
           months: hist.months,
           // Everyone's full breakdown, so the results chart can switch players.
-          players: Object.entries(hist.players).map(([id, p]) => ({ id, name: p.name, total: p.series.total, series: p.series })),
+          players: Object.entries(hist.players).map(([id, p]) => ({ id, name: p.name, bot: !!p.bot, total: p.series.total, series: p.series })),
         };
       } catch (e) { console.error('history', e); }
     }

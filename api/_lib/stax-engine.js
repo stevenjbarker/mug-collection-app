@@ -737,6 +737,106 @@ export function replayHistory(room, playerId, log, end, step = 3) {
   return { months, series };
 }
 
+// ---------- computer players ----------
+// Two bots play every game with simple, famous strategies, using the same
+// prices and the same kind of surprise bills as everyone else.
+export const BOTS = [
+  { id: 'bot:eddy', name: 'Steady Eddy', kind: 'index' },
+  { id: 'bot:rick', name: 'Rebalance Rick', kind: 'rebalance' },
+];
+const INDEX_UNLOCK = INVESTMENTS.find((i) => i.id === 'index').unlock;
+
+function tryTrade(room, p, m, req) {
+  try { return trade(room, p, m, req); } catch { return p; }
+}
+
+// Sells what it must (savings first, then the biggest holding) to cover `need`.
+function raiseCash(room, p, m, need) {
+  for (let guard = 0; guard < 20; guard++) {
+    const sm = summarize(room, p, m);
+    if (sm.cash >= need - 0.005) return p;
+    const short = need - sm.cash;
+    const order = Object.entries(sm.holdings).filter(([, h]) => h.value > 0.01 && !h.lots).sort(([a, x], [b, y]) => (a === 'savings' ? -1 : b === 'savings' ? 1 : y.value - x.value));
+    if (!order.length) return p;
+    const [asset, h] = order[0];
+    p = tryTrade(room, p, m, { asset, side: 'sell', amount: short >= h.value - 0.005 ? 'all' : Math.ceil(short * 100) / 100 });
+  }
+  return p;
+}
+
+function botStep(room, p, m, kind) {
+  // Pay any bill right away.
+  for (const b of summarize(room, p, m).bills) {
+    p = raiseCash(room, p, m, b.amount);
+    p = tryTrade(room, p, m, { asset: 'bill', side: 'pay', lot: String(b.id) });
+  }
+  const sm = summarize(room, p, m);
+  if (kind === 'index') {
+    if (m >= INDEX_UNLOCK) {
+      if (sm.holdings.savings) p = tryTrade(room, p, m, { asset: 'savings', side: 'sell', amount: 'all' });
+      p = tryTrade(room, p, m, { asset: 'index', side: 'buy', amount: 'all' });
+    } else {
+      p = tryTrade(room, p, m, { asset: 'savings', side: 'buy', amount: 'all' });
+    }
+    return p;
+  }
+  // Rebalance: equal dollars in every stock on the market; reset once a year.
+  const stocks = m >= STOCKS_UNLOCK ? roomStocks(room).filter((x) => m >= stockListedMonth(room, x)).map((x) => x.id) : [];
+  if (!stocks.length) return tryTrade(room, p, m, { asset: 'savings', side: 'buy', amount: 'all' });
+  const resetNow = m % 12 === 0 || !p.botStarted;
+  if (resetNow) {
+    p.botStarted = true;
+    for (const asset of Object.keys(summarize(room, p, m).holdings)) p = tryTrade(room, p, m, { asset, side: 'sell', amount: 'all' });
+  }
+  const cash = summarize(room, p, m).cash;
+  if (cash >= stocks.length) {
+    const each = Math.floor((cash / stocks.length) * 100) / 100;
+    for (const asset of stocks) p = tryTrade(room, p, m, { asset, side: 'buy', amount: each });
+  }
+  return p;
+}
+
+// A bot's state at `month`, built month by month (and remembered, since the
+// leaderboard asks for it on every update).
+const botCache = globalThis.__staxBots || (globalThis.__staxBots = new Map());
+export function botAt(room, bot, month, onMonth) {
+  const key = `${room.code}:${room.startedAt}:${bot.id}`;
+  let c = !onMonth && botCache.get(key);
+  if (!c || c.month > month) c = { month: -1, p: newPlayer(bot.id, bot.name, '') };
+  for (let m = c.month + 1; m <= month; m++) {
+    c.p = botStep(room, c.p, m, bot.kind);
+    c.month = m;
+    onMonth?.(c.p, m);
+  }
+  if (!onMonth) {
+    botCache.set(key, c);
+    if (botCache.size > 400) botCache.delete(botCache.keys().next().value);
+  }
+  return c.p;
+}
+
+// One month's balances by product type (for the results charts).
+function snapshotRow(room, p, m) {
+  const sm = summarize(room, p, m);
+  const row = { cash: sm.cash, savings: 0, safe: 0, index: 0, stocks: 0, realestate: 0, gold: 0 };
+  for (const [k, h] of Object.entries(sm.holdings)) row[CHART_GROUPS[k] || 'stocks'] += h.value;
+  return { row, net: sm.netWorth };
+}
+
+export function botHistory(room, bot, end, step = 3) {
+  const months = [];
+  const series = { cash: [], savings: [], safe: [], index: [], stocks: [], realestate: [], gold: [], total: [], net: [] };
+  botAt(room, bot, end, (p, m) => {
+    if (m % step && m !== end) return;
+    const { row, net } = snapshotRow(room, p, m);
+    months.push(m);
+    for (const k of Object.keys(row)) series[k].push(Math.round(row[k]));
+    series.total.push(Math.round(Object.values(row).reduce((a, b) => a + b, 0)));
+    series.net.push(Math.round(net));
+  });
+  return { months, series };
+}
+
 export const REAL_NAMES = {
   KO: 'Coca-Cola', AAPL: 'Apple', MSFT: 'Microsoft', IBM: 'IBM', GE: 'General Electric', XOM: 'Exxon Mobil',
   WMT: 'Walmart', MCD: "McDonald's", DIS: 'Disney', NKE: 'Nike', INTC: 'Intel', HPQ: 'Hewlett-Packard',
