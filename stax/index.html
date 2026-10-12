@@ -95,6 +95,8 @@
   .ticker.good{background:#cdeec5;color:var(--ink);border-color:var(--ink);}
   .ticker.bad{background:#f7c7bb;color:var(--ink);border-color:var(--ink);}
   .ticker.news{background:var(--gold);color:var(--ink);border-color:var(--ink);}
+  .ticker.tax{background:#f5a04a;color:var(--ink);border-color:var(--ink);font-weight:800;}
+  .ticker.tax span{color:var(--ink);font-weight:800;}
   .ticker.good span,.ticker.bad span,.ticker.news span{color:var(--ink);font-weight:600;}
   .ticker button{background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:inherit;padding:0 2px;}
   .qa{display:flex;gap:6px;margin-top:10px;}
@@ -263,6 +265,8 @@
   .news{list-style:none;margin:0;padding:0;font-size:14px;}
   .news li{padding:8px 0;border-bottom:1px solid var(--line);}
   .news li:last-child{border-bottom:none;}
+  .news .taxnews{color:#ffab52;font-weight:800;}
+  .news .taxnews b{color:#ffab52;}
   .news .when{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
   .news .expense{color:var(--down);} .news .windfall{color:var(--up);}
 
@@ -295,6 +299,10 @@
   .stock .nums{text-align:right;font-variant-numeric:tabular-nums;font-size:14px;white-space:nowrap;}
   .stock svg{width:70px;height:30px;flex:none;}
   .big-emoji{font-size:44px;line-height:1;}
+  .sparktip{position:fixed;z-index:95;pointer-events:none;background:var(--cream);color:var(--ink);border:2px solid var(--ink);border-radius:8px;padding:3px 8px;font-size:12px;display:flex;gap:8px;align-items:baseline;white-space:nowrap;box-shadow:0 2px 0 var(--ink);}
+  .sparktip span{color:#5b5b4a;}
+  .sparkdot{stroke:var(--cream);stroke-width:1.5;vector-effect:non-scaling-stroke;opacity:.8;}
+  svg[data-vals]{cursor:crosshair;}
   svg.emo{width:1em;height:1em;vertical-align:-0.125em;display:inline-block;}
 
   /* ---------- toasts ---------- */
@@ -327,7 +335,7 @@
   .toast{background:var(--cream);color:var(--ink);border:2px solid var(--ink);box-shadow:0 4px 0 var(--ink);border-radius:14px;padding:11px 14px;font-weight:600;animation:pop .25s ease;pointer-events:auto;display:flex;gap:10px;align-items:flex-start;}
   .toast span{flex:1;}
   .toast button{background:none;border:none;font-size:20px;line-height:1;cursor:pointer;color:var(--ink);padding:0;}
-  .toast.bad{background:#f7c7bb;} .toast.good{background:#cdeec5;} .toast.news{background:var(--gold);}
+  .toast.bad{background:#f7c7bb;} .toast.good{background:#cdeec5;} .toast.news{background:var(--gold);} .toast.tax{background:#f5a04a;font-weight:800;}
   @keyframes pop{from{transform:translateY(10px);opacity:0;}to{transform:none;opacity:1;}}
 
   /* ---------- host ---------- */
@@ -635,7 +643,7 @@
     <div>
       <div class="legend"><span class="lg safe">Safe savings</span><span class="lg fund">Funds &amp; assets</span><span class="lg stk">Individual stocks</span><span class="lg gamble">Gambling</span></div>
       <div class="grid" id="invGrid"></div>
-      <div class="rowlabel" id="stockLabel">🏷️ Individual stocks <span class="taxwarn">🧾 Selling at a profit is taxed at year end: 22% if held under a year, 15% after</span></div>
+      <div class="rowlabel" id="stockLabel">🏷️ Individual stocks <span class="taxwarn">🧾 Selling at a profit is taxed every April: 22% if held under a year, 15% after</span></div>
       <div class="grid stockgrid" id="stockGrid"></div>
       <div class="grid" id="invGrid2" style="margin-top:8px;"></div>
     </div>
@@ -779,7 +787,7 @@ const INV = {
   cd:        { name: 'CD · 1 yr', icon: '🔐', risk: 'Very low risk', unlock: 12, rate: true, lessonKey: 'cds', lesson: CD_LESSON, term: 12 },
   cd36:      { name: 'CD · 3 yr', icon: '🔐', risk: 'Very low risk', unlock: 12, rate: true, lessonKey: 'cds', lesson: CD_LESSON, term: 36 },
   index:     { name: 'Index Fund', icon: '📈', risk: 'Medium risk', unlock: 24,
-    lesson: 'An index fund buys a tiny slice of the 500 biggest U.S. companies all at once. When one company stumbles, the others carry it. Some years it drops hard, but over long stretches it has grown more than almost anything else. One catch: taxes. At the end of every year you get a tax bill. Profit from selling something you held under a year, and interest from savings, CDs and bonds, is taxed at 22%. Profit on things held a year or longer is taxed at only 15%. Losses lower the bill. When the game ends, everything you own is sold and the last taxes are paid, so your final score is cash in hand.' },
+    lesson: 'An index fund buys a tiny slice of the 500 biggest U.S. companies all at once. When one company stumbles, the others carry it. Some years it drops hard, but over long stretches it has grown more than almost anything else. One catch: taxes. Every April (Tax Day), last year\'s taxes are taken from your pocket cash automatically, so keep some cash on hand. Profit from selling something you held under a year, and interest from savings, CDs and bonds, is taxed at 22%. Profit on things held a year or longer is taxed at only 15%. Losses lower the bill. When the game ends, everything you own is sold and the last taxes are paid, so your final score is cash in hand.' },
   stocks:    { name: 'Individual Stocks', icon: '🏷️', risk: 'High risk', unlock: 36,
     lesson: 'A share of stock is a piece of ownership in one company. If the company grows, so does your share. If it struggles, you can lose a lot. These are REAL companies with their names changed, and each game deals a different handful. Read the descriptions and decide who you believe in.' },
   b1:        { name: 'Gov. Bond · 1 mo', icon: '🏛️', risk: 'Very low risk', unlock: 60, rate: true, lessonKey: 'bonds', lesson: BOND_LESSON, term: 1 },
@@ -952,14 +960,15 @@ function patchList(container, items, tag = 'div'){
 const setHtml = (el, html) => { if (el._html !== html) { el.innerHTML = html; el._html = html; } };
 
 // ---------- sparklines ----------
-function spark(values, w = 200, h = 46, fill = true, trend = yearChange(values)){
+function spark(values, w = 200, h = 46, fill = true, trend = yearChange(values), unit = '$'){
   if (!values || values.length < 2) return `<svg viewBox="0 0 ${w} ${h}" class="spark"></svg>`;
   const min = Math.min(...values), max = Math.max(...values), span = max - min || 1;
   const pts = values.map((v, i) => [ (i / (values.length - 1)) * w, h - 3 - ((v - min) / span) * (h - 6) ]);
   const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
   const color = (trend ?? values[values.length - 1] - values[0]) >= 0 ? 'var(--up)' : 'var(--down)';
   const area = fill ? `<path d="${d} L${w} ${h} L0 ${h} Z" fill="${color}" opacity=".12"/>` : '';
-  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${area}<path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`;
+  // data-vals lets the hover tooltip read each point's value.
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" data-vals="${values.join(',')}" data-unit="${unit}">${area}<path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`;
 }
 // One circle per CD or bond: fills up as it gets closer to paying out.
 const TERM_LABEL = { cd6: '6 mo', cd: '1 yr', cd36: '3 yr', b1: '1 mo', b3: '3 mo', b12: '1 yr' };
@@ -1132,8 +1141,8 @@ function newsHtml(items){
   if (!items.length) return '<li class="muted">Nothing yet.</li>';
   return items.map((n) => `<li>
       <div class="when">${esc(n.label)}</div>
-      <div class="${n.kind === 'expense' ? 'expense' : n.kind === 'windfall' ? 'windfall' : ''}">
-        ${n.kind === 'expense' ? '😬 ' : n.kind === 'windfall' ? '🎉 ' : n.kind === 'listing' ? '🔔 ' : '📰 '}${esc(n.text)}
+      <div class="${n.kind === 'expense' ? 'expense' : n.kind === 'windfall' ? 'windfall' : n.kind === 'tax' ? 'taxnews' : ''}">
+        ${n.kind === 'expense' ? '😬 ' : n.kind === 'windfall' ? '🎉 ' : n.kind === 'listing' ? '🔔 ' : n.kind === 'tax' ? '🧾 ' : '📰 '}${esc(n.text)}
         ${n.amount ? ` <b>${n.amount > 0 ? '+' : ''}${money(n.amount)}</b>` : ''}
       </div></li>`).join('');
 }
@@ -1154,6 +1163,7 @@ function announce(d){
       sound('bad');
     }
     else if (n.kind === 'windfall') { toast(`🎉 ${n.text} +${money(n.amount)}`, 'good'); sound('coin'); }
+    else if (n.kind === 'tax') { toast(`🧾 Tax Day: ${money(-n.amount)} in taxes was taken from your cash.`, 'tax', 9000); sound('bad'); }
     else if (n.kind === 'listing') { toast(`🔔 New stock: ${n.text.replace('New on the market: ', '').split('.')[0]}`, 'news'); }
     else {
       toast('📰 ' + n.text, 'news', 7000);
@@ -1166,7 +1176,6 @@ function announce(d){
     if (S.seenLog.has(l.id)) continue;
     S.seenLog.add(l.id);
     if (l.id.startsWith('o:')) { queueAlert({ kind: 'overdue', billId: l.id.slice(2), text: l.text }); sound('bad'); }
-    else if (l.id.startsWith('x:tax')) { queueAlert({ kind: 'tax', billId: l.id.slice(2) }); sound('bad'); }
     else toast((l.kind === 'bad' ? '🔥 ' : '🔓 ') + l.text, l.kind, 8000);
   }
   const m = Math.floor(d.room.month);
@@ -1384,6 +1393,41 @@ function setSound(on){
   if (on) { audioReady(); setTimeout(() => sound('click'), 50); }
   if (typeof syncMusic === 'function') syncMusic();
 }
+
+// ---------- chart hover ----------
+// Point at (or touch) a small chart to see that month's value.
+const sparkTip = document.createElement('div');
+sparkTip.className = 'sparktip hidden';
+document.body.appendChild(sparkTip);
+function sparkHover(e){
+  const svg = e.target.closest?.('svg[data-vals]');
+  if (!svg) { sparkTip.classList.add('hidden'); document.querySelectorAll('.sparkdot').forEach((d) => d.remove()); return; }
+  const vals = svg.dataset.vals.split(',').map(Number);
+  const r = svg.getBoundingClientRect();
+  const i = Math.max(0, Math.min(vals.length - 1, Math.round(((e.clientX - r.left) / r.width) * (vals.length - 1))));
+  const now = Math.floor(S.data?.room?.month || 0), m = now - (vals.length - 1 - i);
+  const when = m >= 0 ? `${MONTHS[m % 12].slice(0, 3)}, Year ${Math.floor(m / 12) + 1}` : '';
+  const v = vals[i];
+  sparkTip.innerHTML = `<span>${when}</span><b>${svg.dataset.unit === '%' ? v.toFixed(2) + '%' : money(v, true)}</b>`;
+  // Mark the point on the chart.
+  const [, , w, h] = svg.getAttribute('viewBox').split(' ').map(Number);
+  const min = Math.min(...vals), span = Math.max(...vals) - min || 1;
+  let dot = svg.querySelector('.sparkdot');
+  if (!dot) { dot = document.createElementNS('http://www.w3.org/2000/svg', 'line'); dot.setAttribute('class', 'sparkdot'); svg.appendChild(dot); }
+  const x = (i / (vals.length - 1)) * w;
+  dot.setAttribute('x1', x); dot.setAttribute('x2', x); dot.setAttribute('y1', 0); dot.setAttribute('y2', h);
+  const z = fitZoom || 1;
+  sparkTip.classList.remove('hidden');
+  const tw = sparkTip.offsetWidth;
+  sparkTip.style.left = `${Math.min(innerWidth / z - tw - 4, Math.max(4, e.clientX / z - tw / 2))}px`;
+  sparkTip.style.top = `${Math.max(4, r.top / z - 34)}px`;
+  void h;
+}
+document.addEventListener('pointermove', sparkHover, { passive: true });
+document.addEventListener('pointerdown', sparkHover, { passive: true });
+const hideSparkTip = () => { sparkTip.classList.add('hidden'); document.querySelectorAll('.sparkdot').forEach((d) => d.remove()); };
+window.addEventListener('scroll', hideSparkTip, { passive: true, capture: true });
+document.addEventListener('pointerleave', hideSparkTip);
 
 // ---------- soundtrack ----------
 // An original driving loop made on the fly with Web Audio (no audio files):
@@ -1745,7 +1789,7 @@ function renderPlay(){
       const next = h ? Math.min(...h.lots.map((l) => l.maturesIn)) : null;
       cards.push({ key: id, cls: 'inv ratecard', open: id,
         html: `${badge}${head(inv.icon)}
-        <div class="spark">${spark(a?.history, 200, 46, true, 0)}</div>
+        <div class="spark">${spark(a?.history, 200, 46, true, 0, '%')}</div>
         <div class="row"><span class="muted">Rate now</span><span class="mine">${a?.rate != null ? a.rate.toFixed(2) + '%' : '—'}</span></div>
         ${moneyRows(h)}
         <div class="row payrow" style="margin-top:3px;"><span class="muted">${next != null ? 'Next payout' : 'Locked for'}</span><span>${next != null ? next : inv.term || 12} mo</span></div>`,
@@ -1785,7 +1829,7 @@ function renderPlay(){
   setHtml($('pNews'), newsHtml(d.news));
   try { setHtml($('pMix'), mixHtml(me)); } catch (err) { reportError(err, 'mix'); }
   const ty = me.taxYear;
-  setHtml($('pTaxYear'), ty && ty.tax >= 1 ? `🧾 Taxes so far this year: <b>${money(ty.tax)}</b>, billed on Tax Day next April` : '');
+  setHtml($('pTaxYear'), ty && ty.tax >= 1 ? `🧾 Taxes so far this year: <b>${money(ty.tax)}</b>, taken from your cash on Tax Day next April` : '');
   announce(d);
   if (S.sheet) renderSheet();
   if (alertShown) renderAlert();
@@ -1957,7 +2001,7 @@ function renderLotSheet(id, fresh){
   }
   const h = d.me.holdings[id];
   const running = d.room.status === 'running';
-  setHtml($('tChart'), spark(a.history, 400, 120, true, 0));
+  setHtml($('tChart'), spark(a.history, 400, 120, true, 0, '%'));
   $('tMonths').textContent = `Rates, last ${a.history.length - 1} months`;
   $('tPrice').textContent = a.rate.toFixed(2) + '%';
   $('tOwn').textContent = h ? money(h.value) : '$0';
@@ -1974,10 +2018,10 @@ function renderLotSheet(id, fresh){
 // What selling everything right now would cost in capital gains tax.
 function taxHint(id, h){
   if (id === 'savings') return '';
-  if (!h || !(h.value > h.cost + 0.5)) return h ? '🧾 No tax if you sell now: no profit to tax.' : '🧾 Profits from selling are taxed at the end of the year: 22% if held under a year, 15% after.';
+  if (!h || !(h.value > h.cost + 0.5)) return h ? '🧾 No tax if you sell now: no profit to tax.' : '🧾 Profits from selling are taxed, and paid each April: 22% if held under a year, 15% after.';
   const long = (h.held ?? 0) >= 12, rate = long ? 0.15 : 0.22;
   const left = 12 - (h.held ?? 0);
-  return `🧾 Selling it all now adds about <b>${money((h.value - h.cost) * rate)}</b> to this year's tax bill (${long ? '15% long-term' : '22% short-term'} on ${money(h.value - h.cost)} profit).${long ? '' : ` Hold ${left} more month${left === 1 ? '' : 's'} and it drops to 15%.`}`;
+  return `🧾 Selling it all now adds about <b>${money((h.value - h.cost) * rate)}</b> to this year's taxes (${long ? '15% long-term' : '22% short-term'} on ${money(h.value - h.cost)} profit).${long ? '' : ` Hold ${left} more month${left === 1 ? '' : 's'} and it drops to 15%.`}`;
 }
 
 async function doTrade(asset, side, amount, lot, shares){
@@ -1997,7 +2041,7 @@ async function doTrade(asset, side, amount, lot, shares){
   // A sale that made a profit pays capital gains tax; say so with the trade's own message.
   const lt = r.data.me.lastTax;
   S.taxNote = !lt ? '' : lt.gain > 0
-    ? ` · 🧾 ${money(lt.gain)} profit adds about ${money(lt.gain * lt.rate)} to this year's tax bill (${Math.round(lt.rate * 100)}% ${lt.rate < 0.2 ? 'long-term' : 'short-term'})`
+    ? ` · 🧾 ${money(lt.gain)} profit adds about ${money(lt.gain * lt.rate)} to this year's taxes (${Math.round(lt.rate * 100)}% ${lt.rate < 0.2 ? 'long-term' : 'short-term'})`
     : ` · 🧾 ${money(-lt.gain)} loss lowers this year's taxes`;
   if ($('tradeError')) $('tradeError').textContent = '';
   return true;

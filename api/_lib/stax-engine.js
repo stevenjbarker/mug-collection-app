@@ -503,7 +503,7 @@ function finalSettle(room, p, end) {
   const due = taxDue(taxYear(p));
   p.ty = { short: 0, long: 0, interest: 0 };
   if (p.pendingTax) {
-    // Last year's bill hadn't arrived yet: it's settled now too (already counted in p.taxes).
+    // Last year's taxes weren't due yet: they're paid now too (already counted in p.taxes).
     p.cashDelta -= p.pendingTax.tax;
     due.lastYear = p.pendingTax.tax;
     delete p.pendingTax;
@@ -514,24 +514,61 @@ function finalSettle(room, p, end) {
     p.taxes = round2((p.taxes || 0) + due.tax);
   }
   const total = round2(due.tax + (due.lastYear || 0));
-  note(p, 'x:final', `Game over: everything was sold and your final taxes of $${total.toLocaleString('en-US')} were paid from your cash.`, 'bad');
+  note(p, 'x:final', `Game over: everything was sold and your final taxes of ${dollars(total)} were paid from your cash.`, 'bad');
 }
 
-const TAX_DAY = 3; // the bill for a year arrives in April of the next one
+const dollars = (n) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const TAX_DAY = 3; // a year's taxes are paid in April of the next one
 
-// Sends a year's tax bill on Tax Day.
-function sendTaxBill(p, pending) {
+// Raises `need` dollars of pocket cash at month m without the player
+// lifting a finger: savings first, then investments (biggest first), then
+// CDs and bonds. Any profit from those sales counts toward this year's
+// taxes. Returns how much it raised.
+function sellForTaxes(room, p, m, need) {
+  let raised = 0;
+  const units = (asset) => {
+    const px = price(room, asset, m), have = (p.units[asset] || 0) * px;
+    if (!(have > 0.005) || need - raised <= 0.005) return;
+    const take = Math.min(need - raised, have);
+    p.cashDelta += take;
+    sellUnits(p, asset, take >= have - 0.005 ? p.units[asset] : take / px, take, m);
+    raised += take;
+  };
+  accrueSavings(room, p, m);
+  units('savings');
+  const big = Object.keys(p.units).map((a) => [a, p.units[a] * price(room, a, m)]).sort((x, y) => y[1] - x[1]);
+  for (const [asset] of big) units(asset);
+  for (const l of [...p.lots].sort((a, b) => TERMS[a.kind].penaltyMonths - TERMS[b.kind].penaltyMonths)) {
+    if (need - raised <= 0.005) break;
+    const out = lotCashOut(l, m);
+    p.cashDelta += out;
+    taxYear(p).interest += out - l.amount;
+    p.lots = p.lots.filter((x) => x !== l);
+    raised += out;
+  }
+  return round2(raised);
+}
+
+// Tax Day: last year's taxes are paid automatically. Pocket cash first; if
+// that's short, the game sells what it must (see sellForTaxes). Only if there's
+// truly nothing left does the rest go on the credit card. Shows up in the news.
+function payTaxes(room, p, pending) {
   const { y, tax, ...detail } = pending;
-  p.bills.push({ id: `tax${y}`, title: `Year ${y} taxes`, amount: tax, due: dueFrom(y * 12 + TAX_DAY), tax: detail });
-  note(p, `x:tax${y}`, `Tax Day: your Year ${y} tax bill is here: $${tax.toLocaleString('en-US')}.`, 'bad');
+  const m = y * 12 + TAX_DAY;
+  const cash = Math.max(0, cashOf(p, m));
+  const sold = cash < tax ? sellForTaxes(room, p, m, tax - cash) : 0;
+  const onCard = round2(Math.max(0, tax - Math.max(0, cashOf(p, m))));
+  p.cashDelta -= tax - onCard;
+  if (onCard > 0) p.debtUnits = (p.debtUnits || 0) + onCard / price(room, 'card', m);
+  p.taxLog = [...(p.taxLog || []), { month: m, y, tax, sold, onCard, ...detail }];
 }
 
-// End of each game year: total up the year; its bill arrives on Tax Day in
+// End of each game year: total up the year; the taxes are paid on Tax Day in
 // April. At the end of the game, everything is sold and the last taxes
-// (including any bill not sent yet) are paid on the spot.
+// (including any not paid yet) are paid on the spot.
 function yearEndTaxes(room, p, upTo) {
   const end = endMonth(room);
-  if (p.pendingTax && p.pendingTax.y * 12 + TAX_DAY <= Math.min(upTo, end - 1)) { sendTaxBill(p, p.pendingTax); delete p.pendingTax; }
+  if (p.pendingTax && p.pendingTax.y * 12 + TAX_DAY <= Math.min(upTo, end - 1)) { payTaxes(room, p, p.pendingTax); delete p.pendingTax; }
   for (let y = (p.taxDone || 0) + 1; y * 12 <= upTo && y * 12 < end; y++) {
     const m = y * 12;
     matureLots(p, m);
@@ -542,7 +579,7 @@ function yearEndTaxes(room, p, upTo) {
     if (due.tax < 1) continue;
     p.taxes = round2((p.taxes || 0) + due.tax);
     p.pendingTax = { y, ...due };
-    if (m + TAX_DAY <= Math.min(upTo, end - 1)) { sendTaxBill(p, p.pendingTax); delete p.pendingTax; }
+    if (m + TAX_DAY <= Math.min(upTo, end - 1)) { payTaxes(room, p, p.pendingTax); delete p.pendingTax; }
   }
   if (upTo >= end && !p.finalDone) finalSettle(room, p, end);
 }
@@ -816,6 +853,14 @@ export function news(room, month, player) {
   }
   for (const e of player || !room.personalEvents ? eventsFor(room, player) : []) {
     if (e.month <= month) out.push({ month: e.month, kind: e.amount > 0 ? 'windfall' : 'expense', text: e.title, amount: e.amount });
+  }
+  if (player) {
+    for (const t of settle(room, player, month).taxLog || []) {
+      if (t.month > month) continue;
+      const parts = [t.short && `${dollars(t.short)} short-term profit at 22%`, t.interest && `${dollars(t.interest)} interest at 22%`, t.long && `${dollars(t.long)} long-term profit at 15%`].filter(Boolean);
+      out.push({ month: t.month, kind: 'tax', amount: -t.tax,
+        text: `Tax Day: you paid your Year ${t.y} taxes (${parts.join(', ')}).${t.sold ? ` You were short on pocket cash, so ${dollars(t.sold)} of your savings and investments was sold to cover it.` : ''}${t.onCard ? ` ${dollars(t.onCard)} went on your credit card.` : ''}` });
+    }
   }
   return out.sort((a, b) => b.month - a.month).slice(0, 12).map(({ at, ...n }) => ({ ...n, label: monthLabel(at ?? n.month) }));
 }
