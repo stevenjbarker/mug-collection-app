@@ -16,6 +16,9 @@
 //   credit card plans, all accounts (quarterly, from Nov 1994), and before
 //   that the yearly averages in the Fed's 2014 Report to the Congress on the
 //   Profitability of Credit Card Operations.
+// - commodities.csv: monthly average prices from the World Bank Commodity
+//   Price Data ("The Pink Sheet"): crude oil (average), arabica coffee,
+//   maize (corn), soybeans and Thai 5% rice.
 // - Yahoo Finance monthly closes: the S&P 500 (^GSPC) for the month-to-month
 //   shape of the index fund, and dividend/split-adjusted closes for each
 //   company in companies.js.
@@ -152,6 +155,20 @@ async function main() {
     if (arr.slice(12).some((v) => v == null)) throw new Error(`${key} rates have gaps`);
   }
 
+  // Commodity prices (real dollars) for each index month k.
+  const comText = await fs.readFile(path.join(ROOT, 'scripts/stax/commodities.csv'), 'utf8');
+  const [comHead, ...comRows] = comText.trim().split('\n');
+  const comCols = comHead.split(',').slice(1);
+  const commodities = Object.fromEntries(comCols.map((c) => [c, new Array(MONTHS + 1).fill(null)]));
+  for (const row of comRows) {
+    const [month, ...vals] = row.split(',');
+    const [y, mo] = month.split('-').map(Number);
+    const k = (y - FIRST_YEAR) * 12 + mo;
+    if (k < 0 || k > MONTHS) continue;
+    comCols.forEach((c, i) => { if (vals[i] !== '') commodities[c][k] = Number(vals[i]); });
+  }
+  for (const [c, arr] of Object.entries(commodities)) if (arr.slice(12).some((v) => v == null)) throw new Error(`${c} prices have gaps`);
+
   const cpi = [];
   for (let y = FIRST_YEAR; y <= LAST_YEAR; y++) cpi.push(Number(years[y].cpi.toFixed(5)));
 
@@ -162,6 +179,8 @@ export const LAST_YEAR = ${LAST_YEAR};
 export const ASSET_INDEX = ${JSON.stringify(assets)};
 export const STOCKS = ${JSON.stringify(stocks)};
 export const CPI = ${JSON.stringify(cpi)};
+// Commodity prices in real dollars per unit, by month.
+export const COMMODITIES = ${JSON.stringify(commodities)};
 // Annual rates (decimal) for each month: CDs, 1-month, 3-month and 1-year
 // government bonds, and the average credit card rate. null where there's no data.
 export const RATES = ${JSON.stringify(rates)};

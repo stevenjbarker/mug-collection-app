@@ -108,6 +108,12 @@
   .sqbtns{display:flex;gap:6px;}
   .sqbtns .qbtn{font-size:13px;}
   .bondcard{grid-column:span 2;}
+  .commodcard{grid-column:span 2;}
+  .commodcard .qa{flex-direction:column;gap:6px;}
+  .cpills{display:flex;gap:4px;flex-wrap:wrap;}
+  .cpill{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg2);color:var(--cream);border-radius:9px;padding:5px 2px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+  .cpill.on{background:var(--gold);color:var(--ink);border-color:var(--ink);}
+  .cbtns{display:flex;gap:6px;}
   .rowlabel{margin:14px 0 8px;font-size:13px;font-weight:800;letter-spacing:.5px;color:#9dbbff;text-transform:uppercase;}
   .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:0 0 10px;}
   .lg::before{content:'';display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;}
@@ -439,6 +445,7 @@
     .buyrow input{padding:4px 4px;font-size:13px;}
     .buyrow .qbtn{flex-basis:46px;}
     .legend{flex-wrap:nowrap;white-space:nowrap;}
+    .cpill{font-size:11px;padding:4px 1px;}
     .rowlabel{margin:8px 0 5px;font-size:11px;}
     #invGrid2{margin-top:6px !important;}
     .wheelrow{margin:4px 0 2px;} .ball{width:34px;height:34px;font-size:14px;border-width:2px;} .rlres{font-size:11.5px;}
@@ -734,11 +741,21 @@ const INV = {
     lesson: 'Gold pays no interest and no dividends. Its price moves on fear and inflation: people rush to it when they are scared. It can sit still for a decade, then shoot up.' },
 };
 // Dashboard order; 'stocks' expands into one card per company once unlocked.
+const COMMOD_LESSON = 'Commodities are raw goods the whole world buys: oil, coffee, corn, soybeans and rice. Their prices swing with weather, wars, harvests and how fast the world economy is growing. They pay no interest or dividends, so you only make money if the price goes up.';
+INV.commod = { name: 'Commodities', icon: '🛢️', risk: 'High risk', unlock: 132, lesson: COMMOD_LESSON };
+const COMMODS = [
+  { id: 'oil', name: 'Oil', icon: '🛢️', unit: 'barrel' },
+  { id: 'coffee', name: 'Coffee', icon: '☕', unit: 'kg' },
+  { id: 'corn', name: 'Corn', icon: '🌽', unit: 'ton' },
+  { id: 'soy', name: 'Soybeans', icon: '🫘', unit: 'ton' },
+  { id: 'rice', name: 'Rice', icon: '🍚', unit: 'ton' },
+];
+for (const c of COMMODS) INV[c.id] = { name: c.name, icon: c.icon, risk: 'High risk', unlock: 132, lesson: COMMOD_LESSON, commodity: true, unit: c.unit };
 INV.roulette = { name: 'Roulette', icon: '🎰', risk: 'Gambling', unlock: 204,
   lesson: 'A roulette wheel has 38 pockets: 18 red, 18 black, plus 0 and 00 (green). Bet on red or black and you double your money if you win, but only 18 times in 38. Bet on 0 or 00 and you win 35 times your bet, but only 1 time in 38. Either way the casino keeps about 5 cents of every dollar bet over time. That is the house edge, and it is why casinos always make money.' };
 INV.bonds = { name: 'Government Bonds', icon: '🏛️', risk: 'Very low risk', unlock: 60, lessonKey: 'bonds', lesson: BOND_LESSON };
 const BOND_TERMS = [{ id: 'b1', n: 1, unit: 'Month' }, { id: 'b3', n: 3, unit: 'Months' }, { id: 'b12', n: 1, unit: 'Year' }];
-const ORDER = ['savings','cd','index','stocks','bonds','realestate','gold','roulette'];
+const ORDER = ['savings','cd','index','stocks','bonds','realestate','gold','commod','roulette'];
 // Savings isn't bought and sold — it's deposited and withdrawn.
 const verbs = (id) => (id === 'savings' ? ['Deposit', 'Withdraw', 'Deposited', 'Withdrew'] : ['Buy', 'Sell', 'Bought', 'Sold']);
 const nameOf = (id) => INV[id]?.name || S.data?.market?.stocks.find((s) => s.id === id)?.name || 'that';
@@ -768,6 +785,7 @@ let S = {
   shareQty: (() => { try { return JSON.parse(localStorage.getItem('stax:sq')) || {}; } catch { return {}; } })(), // per-stock share amount
   bondTerm: 'b3',       // term picked on the Government Bonds card
   rlPick: 'red',        // roulette bet: red, black or 00
+  commodPick: 'oil',    // commodity picked on the Commodities card
   spinning: false,
   qty: (() => { try { return localStorage.getItem('stax:qty') || '1000'; } catch { return '1000'; } })(),
 };
@@ -1120,6 +1138,13 @@ function rlInfo(pick){
   const num = String(pick).replace(/^n:/, '');
   return { label: num, pays: 35, wins: 1 };
 }
+function syncCommodCard(d, canBuy){
+  const card = document.querySelector('.commodcard');
+  if (!card) return;
+  card.querySelectorAll('.cpill').forEach((b) => b.classList.toggle('on', b.dataset.commod === S.commodPick));
+  card.querySelector('[data-quick="buy"]').disabled = !canBuy || S.busy;
+  card.querySelector('[data-quick="sell"]').disabled = !d.me.holdings[S.commodPick] || d.room.status !== 'running' || S.busy;
+}
 function rlBet(){
   const cash = S.data?.me?.cash || 0;
   return S.qty === 'all' ? cash : Math.min(Number(S.qty), cash);
@@ -1430,6 +1455,24 @@ function renderPlay(){
           <button class="qbtn buy" data-spin>Spin</button>` });
       return;
     }
+    if (id === 'commod') {
+      // One card for all the commodities: pick one, then Buy/Sell with the trade amount.
+      const list = d.market?.commodities || [];
+      const c = list.find((x) => x.id === S.commodPick) || list[0];
+      if (!c) return;
+      const held = COMMODS.map((x) => me.holdings[x.id]).filter(Boolean);
+      const total = held.length ? { value: held.reduce((t, h) => t + h.value, 0), cost: held.reduce((t, h) => t + h.cost, 0) } : null;
+      const mv = monthMove(c.history);
+      cards.push({ key: id, cls: 'inv commodcard', open: c.id,
+        html: `${badge}${head(inv.icon)}
+        <div class="row" style="margin-top:4px;"><span><b>${esc(c.name)}</b> ${money(c.price, true)}<span class="muted">/${c.unit}</span></span><span class="mo">${moveHtml(mv)} <span class="muted">mo</span></span></div>
+        <div class="spark">${spark(c.history)}</div>
+        ${moneyRows(total)}
+        ${held.length ? `<div class="row"><span class="muted">You hold</span><span>${COMMODS.filter((x) => me.holdings[x.id]).map((x) => `${x.icon} ${money(me.holdings[x.id].value)}`).join(' · ')}</span></div>` : ''}`,
+        actions: `<div class="cpills">${COMMODS.map((x) => `<button class="cpill" data-commod="${x.id}">${x.icon} ${x.name}</button>`).join('')}</div>
+          <div class="cbtns"><button class="qbtn buy" data-quick="buy" data-asset="commod">Buy</button><button class="qbtn sell" data-quick="sell" data-asset="commod">Sell</button></div>` });
+      return;
+    }
     if (id === 'bonds') {
       // One card for all three bond lengths: pick a term, then buy below.
       const lots = BOND_TERMS.flatMap((t) => (me.holdings[t.id]?.lots || []).map((l) => ({ ...l, kind: t.id })));
@@ -1472,7 +1515,7 @@ function renderPlay(){
     }
   }
   // Color-code by kind of product so stocks stand out from everything else.
-  const CAT = { savings: 'safe', cd: 'safe', bonds: 'safe', index: 'fund', realestate: 'fund', gold: 'fund', stocks: 'stock', roulette: 'gamble' };
+  const CAT = { savings: 'safe', cd: 'safe', bonds: 'safe', index: 'fund', realestate: 'fund', gold: 'fund', commod: 'fund', stocks: 'stock', roulette: 'gamble' };
   for (const c of cards) c.cls += ' cat-' + (CAT[c.key] || 'stock');
   // Individual stocks get a row of their own.
   // Row 1: savings & safe stuff; row 2: individual stocks; row 3: the rest.
@@ -1483,6 +1526,7 @@ function renderPlay(){
   patchList($('invGrid2'), cards.filter((c) => !TOP.has(c.key) && !isStockCard(c)));
   syncBondCard(d, canBuy);
   syncRoulette(d, canBuy);
+  syncCommodCard(d, canBuy);
 
   setHtml($('pBoard'), boardHtml(d.leaderboard, { limit: 10 }));
   setHtml($('pNews'), newsHtml(d.news));
@@ -1570,7 +1614,8 @@ function renderSheet(fresh = false){
   const running = d.room.status === 'running';
   if (INV[sh.id]?.rate) { renderLotSheet(sh.id, fresh); return; }
   const isStock = !INV[sh.id];
-  const item = isStock ? (d.market?.stocks || []).find((s) => s.id === sh.id) : (d.market?.assets || []).find((a) => a.id === sh.id);
+  const isCommod = !!INV[sh.id]?.commodity;
+  const item = isStock ? (d.market?.stocks || []).find((s) => s.id === sh.id) : isCommod ? (d.market?.commodities || []).find((c) => c.id === sh.id) : (d.market?.assets || []).find((a) => a.id === sh.id);
   if (!item) { closeSheet(); return; }
   const h = d.me.holdings[sh.id];
   const [buyV, sellV] = verbs(sh.id);
@@ -1583,7 +1628,7 @@ function renderSheet(fresh = false){
       <div class="chart" id="tChart"></div>
       <div class="muted" style="font-size:12px;" id="tMonths"></div>
       <div class="facts">
-        <div><div class="label">${isStock ? 'Share price' : 'Value of $100'}</div><div class="value" id="tPrice"></div></div>
+        <div><div class="label">${isStock ? 'Share price' : isCommod ? `Price per ${INV[sh.id].unit}` : 'Value of $100'}</div><div class="value" id="tPrice"></div></div>
         ${isStock ? '<div><div class="label">This month</div><div class="value" id="tMonth"></div></div>' : ''}
         <div><div class="label">Past year</div><div class="value" id="tChange"></div></div>
         <div><div class="label">${sh.id === 'savings' ? 'Balance' : 'You own'}</div><div class="value" id="tOwn"></div></div>
@@ -1704,6 +1749,7 @@ function syncQty(){
 
 // One-tap Buy/Sell from the dashboard, using the trade amount picked in the top bar.
 async function quickTrade(asset, side){
+  if (asset === 'commod') asset = S.commodPick;
   const me = S.data?.me;
   if (!me || S.busy) return;
   const label = nameOf(asset);
@@ -1802,6 +1848,7 @@ function renderResults(){
 const HSERIES = [
   { key: 'cash', label: 'Pocket cash', color: '#9aa39a' },
   { key: 'savings', label: 'Savings', color: '#199e70' },
+  { key: 'commod', label: 'Commodities', color: '#e66767', dash: true },
   { key: 'safe', label: 'CDs & bonds', color: '#9085e9' },
   { key: 'index', label: 'Index fund', color: '#d95926' },
   { key: 'stocks', label: 'Stocks', color: '#3987e5' },
@@ -2008,7 +2055,7 @@ $('payDebtBtn').addEventListener('click', async () => {
 
 document.addEventListener('click', async (e) => {
   if (e.target.closest('input')) return; // typing in a box isn't a tap on its card
-  const t = e.target.closest('[data-chartplayer],[data-rlmore],[data-rlpick],[data-skipgate],[data-payall],[data-alertpay],[data-alertlater],[data-rl],[data-spin],[data-sq],[data-term],[data-bondmax],[data-bondclear],[data-bondbuy],[data-flip],[data-ready],[data-opengate],[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
+  const t = e.target.closest('[data-commod],[data-chartplayer],[data-rlmore],[data-rlpick],[data-skipgate],[data-payall],[data-alertpay],[data-alertlater],[data-rl],[data-spin],[data-sq],[data-term],[data-bondmax],[data-bondclear],[data-bondbuy],[data-flip],[data-ready],[data-opengate],[data-quick],[data-shares],[data-paybill],[data-cashout],[data-qty],[data-open],[data-close],[data-lesson],[data-amt],[data-trade],[data-kick],[data-go]');
   if (!t) { if (e.target === $('overlay') && S.sheet?.type !== 'gate') closeSheet(); return; }
   if (t.dataset.go) { show(t.dataset.go); return; }
   if (t.dataset.term) { S.bondTerm = t.dataset.term; syncBondCard(S.data, S.data.room.status === 'running' && !(S.data.me.bills || []).length); return; }
@@ -2043,6 +2090,7 @@ document.addEventListener('click', async (e) => {
     } else { t.disabled = false; toast(S.lastError || 'Could not pay.', 'bad'); }
     return;
   }
+  if (t.dataset.commod) { S.commodPick = t.dataset.commod; renderPlay(); return; }
   if (t.dataset.chartplayer) { S.chartPlayer = t.dataset.chartplayer; renderPlayerPills(S.data, S.data.reveal.startYear); return; }
   if ('rlmore' in t.dataset) { openSheet('roulette', 'table'); return; }
   if (t.dataset.rlpick) { S.rlPick = t.dataset.rlpick; syncRoulette(S.data, S.data.room.status === 'running' && !(S.data.me.bills || []).length); renderSheet(); return; }

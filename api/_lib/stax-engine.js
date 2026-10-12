@@ -2,7 +2,7 @@
 // a player record, and the game month, so the server stays the only source
 // of truth and players never see prices from the future.
 import { randomInt } from 'node:crypto';
-import { ASSET_INDEX, STOCKS, CPI, RATES, FIRST_YEAR } from './stax-data.js';
+import { ASSET_INDEX, STOCKS, CPI, RATES, COMMODITIES, FIRST_YEAR } from './stax-data.js';
 
 export const GAME_MONTHS = 240;
 export const PAYCHECK = 4000;
@@ -10,6 +10,15 @@ export const PAY_EVERY = 6;
 export const START_YEARS = [1986, 2006]; // 20-year windows that fit the data
 export const CARD_APR = 0.22;
 const STOCKS_UNLOCK = 36;
+const COMMOD_UNLOCK = 132; // Year 12
+// Real monthly prices (World Bank) for these raw goods.
+export const COMMODITY_LIST = [
+  { id: 'oil', name: 'Oil', unit: 'barrel' },
+  { id: 'coffee', name: 'Coffee', unit: 'kg' },
+  { id: 'corn', name: 'Corn', unit: 'ton' },
+  { id: 'soy', name: 'Soybeans', unit: 'ton' },
+  { id: 'rice', name: 'Rice', unit: 'ton' },
+];
 const BONDS_UNLOCK = 60;
 export const BILL_DUE = 3;          // months to pay a surprise bill before it starts charging interest
 const STOCKS_PER_GAME = [3, 5];
@@ -49,6 +58,10 @@ export const INVESTMENTS = [
   {
     id: 'realestate', name: 'Real Estate', unlock: 84, risk: 'Medium',
     lesson: 'This tracks the price of U.S. homes. Real estate usually rises slowly with the economy, but when a housing bubble pops, prices can fall for years.',
+  },
+  {
+    id: 'commod', name: 'Commodities', unlock: COMMOD_UNLOCK, risk: 'High',
+    lesson: 'Commodities are raw goods the whole world buys: oil, coffee, corn, soybeans and rice. Their prices swing with weather, wars, harvests and how fast the world economy is growing. They pay no interest or dividends, so you only make money if the price goes up.',
   },
   {
     id: 'roulette', name: 'Roulette', unlock: 204, risk: 'Gambling',
@@ -278,6 +291,7 @@ function roomStocks(room) {
 export function price(room, asset, month) {
   const k = startIndex(room) + month;
   if (asset === 'card') return Math.pow(1 + CARD_APR, month / 12);
+  if (COMMODITIES[asset]) return COMMODITIES[asset][k];
   const series = ASSET_INDEX[asset] || stockById(asset)?.prices;
   if (!series) throw new Error('unknown investment');
   const base = series[startIndex(room)];
@@ -317,6 +331,7 @@ export function stockListedMonth(room, s) {
 
 function isAvailable(room, asset, month) {
   if (asset === 'card' || asset === 'bill') return true;
+  if (COMMODITIES[asset]) return month >= COMMOD_UNLOCK;
   const inv = INVESTMENTS.find((i) => i.id === asset);
   if (inv && inv.id !== 'stocks') return month >= inv.unlock;
   const s = roomStocks(room).find((x) => x.id === asset);
@@ -609,6 +624,7 @@ export function market(room, month) {
   const assets = INVESTMENTS.filter((i) => i.id !== 'stocks').map((i) => {
     const unlocked = month >= i.unlock;
     if (i.id === 'roulette') return { id: i.id, unlocked };
+    if (i.id === 'commod') return { id: i.id, unlocked };
     if (TERMS[i.id]) {
       const rates = [];
       for (let m = Math.max(0, month - HISTORY); m <= month; m++) rates.push(Number((rateFor(room, i.id, m) * 100).toFixed(2)));
@@ -624,7 +640,10 @@ export function market(room, month) {
       stocks.push({ id: s.id, name: nameIn(room, s), blurb: blurbFor(room, s), listedMonth: lm, price: round2(price(room, s.id, month)), history: series(room, s.id, lm, month) });
     }
   }
-  return { assets, stocks };
+  const commodities = month >= COMMOD_UNLOCK
+    ? COMMODITY_LIST.map((c) => ({ ...c, price: round2(price(room, c.id, month)), history: series(room, c.id, COMMOD_UNLOCK - HISTORY, month) }))
+    : [];
+  return { assets, stocks, commodities };
 }
 
 // `player` adds that player's own bills and windfalls to the feed.
@@ -708,6 +727,7 @@ export function tradeLogEntry(month, req, before, after) {
 const CHART_GROUPS = {
   savings: 'savings', cd: 'safe', b1: 'safe', b3: 'safe', b12: 'safe',
   index: 'index', realestate: 'realestate', gold: 'gold',
+  oil: 'commod', coffee: 'commod', corn: 'commod', soy: 'commod', rice: 'commod',
 };
 
 // Rebuilds a player's balances month by month by replaying their trades.
@@ -716,7 +736,7 @@ export function replayHistory(room, playerId, log, end, step = 3) {
   let p = newPlayer(playerId, '', '');
   let i = 0;
   const months = [];
-  const series = { cash: [], savings: [], safe: [], index: [], stocks: [], realestate: [], gold: [], total: [], net: [] };
+  const series = { cash: [], savings: [], safe: [], index: [], stocks: [], realestate: [], gold: [], commod: [], total: [], net: [] };
   for (let m = 0; m <= end; m++) {
     while (i < log.length && log[i].m <= m) {
       const e = log[i++];
@@ -727,7 +747,7 @@ export function replayHistory(room, playerId, log, end, step = 3) {
     }
     if (m % step && m !== end) continue;
     const sm = summarize(room, p, m);
-    const row = { cash: sm.cash, savings: 0, safe: 0, index: 0, stocks: 0, realestate: 0, gold: 0 };
+    const row = { cash: sm.cash, savings: 0, safe: 0, index: 0, stocks: 0, realestate: 0, gold: 0, commod: 0 };
     for (const [k, h] of Object.entries(sm.holdings)) row[CHART_GROUPS[k] || 'stocks'] += h.value;
     months.push(m);
     for (const k of Object.keys(row)) series[k].push(Math.round(row[k]));
@@ -818,14 +838,14 @@ export function botAt(room, bot, month, onMonth) {
 // One month's balances by product type (for the results charts).
 function snapshotRow(room, p, m) {
   const sm = summarize(room, p, m);
-  const row = { cash: sm.cash, savings: 0, safe: 0, index: 0, stocks: 0, realestate: 0, gold: 0 };
+  const row = { cash: sm.cash, savings: 0, safe: 0, index: 0, stocks: 0, realestate: 0, gold: 0, commod: 0 };
   for (const [k, h] of Object.entries(sm.holdings)) row[CHART_GROUPS[k] || 'stocks'] += h.value;
   return { row, net: sm.netWorth };
 }
 
 export function botHistory(room, bot, end, step = 3) {
   const months = [];
-  const series = { cash: [], savings: [], safe: [], index: [], stocks: [], realestate: [], gold: [], total: [], net: [] };
+  const series = { cash: [], savings: [], safe: [], index: [], stocks: [], realestate: [], gold: [], commod: [], total: [], net: [] };
   botAt(room, bot, end, (p, m) => {
     if (m % step && m !== end) return;
     const { row, net } = snapshotRow(room, p, m);
